@@ -66,7 +66,7 @@ def R_func_full_network(S_conc,A_r,C_r,N_r):
 
 def O_func_full_network(S_and_R_conc,A_o,C_o,N_o):
     return ((A_o)/(1+(C_o*(S_and_R_conc))**N_o))
-
+    
 def O_func_half_network(S_conc,A_o,C_o,N_o):
     return ((A_o)/(1+(C_o*S_conc)**N_o))
 #for full network
