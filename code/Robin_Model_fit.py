@@ -3,25 +3,37 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import minimize
 from Models import *
+from data_wrangling import *
 
 #use model chosen from Models.py to obtain fit of model to data
 
-wt_df = pd.read_csv('../data/WT_single.csv')
-wt_I=wt_df.S
-wt_Sensor=wt_df.Sensor
-wt_Regulator=wt_df.Regulator
-wt_Output=wt_df.Output
-wt_Stripe=wt_df.Stripe
+df = pd.read_csv('../data/WT_single.csv')
 
+#substitute mutation data into the WT dataframe for a particular set of mutantions
+#for single mutations to start:
+def get_data_SM(mutation):
+    df_MT = df
+    data = meta_dict["SM"]
+    data = data.loc[data['Mutant_ID'] == mutation]
+    #WT data missing measurements for inducer = 0.2 so drop last columnn
+    data = data[:-1]
+
+    a = re.search("[0-9]",mutation).start()
+    mut_col = f"{mutant[:a]}"
+    mutation_means = f"{mutant[:a]}_mean"
+    df_MT[[mut_col, "Stripe"]] = data[[mutation_means, "Stripe_mean"]].values
+    return df_MT
+
+#example of above function to get SM dat for Sensor1 mutation:
+S1_df = get_data_SM("Sensor1")
 
 # minimizing sum of sqrd deviations of log model and log data
-data = wt_df
-#best guess from first fit = [311,17220,1081,0.9,2000,6000,0.0421,0.308,2000,4054,5.25E-5,3.17]
+data = S1_df
+
+#paramater estimates from WT:
+WT_params = [6.08397103e+02, 1.52504577e+04, 1.66805905e+03, 1.19893355e+00, 6.87964693e+02, 2.34976114e+04, 6.23671728e-02, 3.91730917e-01, 5.90606548e+02, 3.52871257e+04, 5.29890033e-04, 8.29829791e-01, 4.28817019e+00, 3.13322189e+00, 1.80901848e+00]
 #%%
 coeffs = {'A_s': 1,'B_s': 1,'C_s':1,'N_s':0, 'A_r':1,'B_r':1,'C_r':1,'N_r':0,'A_h':1, 'B_h':1, 'C_h':1, 'A_o':1,'B_o':1,'C_o': 1,'N_o': 0}
-import random
-start_coeffs = np.random.rand(15) * (1e4-1e-4) + 0.5
-print(start_coeffs)
 # function to input paramaters as a list
 def coeff_input(param_list):
     if len(param_list) != len(coeffs):
@@ -31,6 +43,11 @@ def coeff_input(param_list):
             coeffs[str(key)] = param_list[i]
     return coeffs
 #%%
+#change dictionary to list of coeffs
+def coef_dict_to_list(coef_dict):
+    return list(coef_dict.values())
+
+init_coeffs = coeff_input(WT_params)
 
 def min_fun(coefficients,data=data):
     log_sen = np.log10(data.Sensor)
@@ -53,31 +70,25 @@ def min_fun(coefficients,data=data):
 #now gonna do the scipy.optimize.minimize
 #%%
 #start_coeffs =stats.uniform(0.001, 100).rvs(15)
-#print(start_coeffs)
-start_coeffs=[311,17220,1081,0.9 #As,Bs,Cs,Ns
-, 6.80803615e+02,1.88728919e+04,3.91470236e-02,3.74001669e-01, #Ar,Br,Cr,Nr 
-+1.02584227e+03,9.47437625e+04,3.96678625e-03, # Ah, Bh, Ch
-8.58578541e-01,1.05191555e+01,7.15818491e+01,8.30769275e-01] #Ao,Bo,Co,No
-print(start_coeffs)
-# adding bounds such that all estimated parameters are +ve
+print("starting paramaters:", WT_params)
 bnds = ((0, None), (0, None), (0, None), (0, None), (0, None), (0, None), (0, None), (0, None), (0, None), (0, None), (0, None), (0, None), (0, None), (0, None), (0, None))
-min_result=minimize(min_fun,x0= start_coeffs ,method='Nelder-Mead',bounds=bnds)
+min_result=minimize(min_fun,x0= WT_params ,method='Nelder-Mead',bounds=bnds)
 #plotting the predictions now
 
 #generating estimates
 Sensor_est_array,Regulator_est_array,Output_est_array, Stripe_est_array = model_4_pred(data.S,*min_result.x)
 
-Sensor_est_array_initial,Regulator_est_array_initial,Output_est_array_initial, Stripe_est_array_initial = model_4_pred(data.S,*start_coeffs)
+Sensor_est_array_initial,Regulator_est_array_initial,Output_est_array_initial, Stripe_est_array_initial = model_4_pred(data.S,*WT_params)
 
 
-wt_Signal=wt_I
+Signal=data.S
 def WT_fit_plot(ax, y, params):
-    return ax.plot(wt_Signal, y, **params)
+    return ax.plot(Signal, y, **params)
 
 
 #define scatter plotting function with log scales
 def WT_Plotter(ax,y, params):
-    out = ax.scatter(wt_Signal, wt_df[y], **params, marker = 'o')
+    out = ax.scatter(Signal, data[y], **params, marker = 'o')
     xScale = ax.set_xscale('log')
     yScale = ax.set_yscale('log')
     xlab = ax.set_xlabel("Inducer concentration (%)")
@@ -104,9 +115,9 @@ WT_Plotter(Stripe,"Stripe", {'color': 'green'})
 WT_fit_plot(Stripe, Stripe_est_array, {'color':'green'})
 WT_fit_plot(Stripe, Stripe_est_array_initial, {'color':'black'})
 
-
-plt.suptitle("Wild type data plots")
+title = ["SM data type data plots for mutation", "Sensor 1"]
+plt.suptitle(title)
 
 plt.show()
-print(min_result.x)
+print("final parameter estimates:", min_result.x)
 # %%
