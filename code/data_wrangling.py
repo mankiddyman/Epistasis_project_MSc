@@ -48,12 +48,12 @@ for mutant in SM_names:
     mean=[]
     stdev=[]
 
-    a = re.search("[0-9]",mutant).start()
+    a = re.search("[0-9]",mutant).start() #index of mutant identifier
     mutant_stripe = f"{mutant[:a]} {mutant[a:]}"
     
     mutant_table=pd.read_table(os.path.join(path_main,"mutants_separated",(mutant+".dat")),header=None)
     indexes=int(len(mutant_table)/3)
-    ind = mutant_table.iloc[0:indexes,0]
+    ind = mutant_table.iloc[0:indexes,0] #concentrations
     genotype += [mutant]*indexes
     inducer.extend(ind)
     for i in range(0,indexes):       
@@ -66,7 +66,7 @@ for mutant in SM_names:
 
     if mutant.startswith("Output"):
 
-        Output_mean+=mean        
+        Output_mean.extend(mean)        
         Output_stdev.extend(stdev)
 
         Regulator_mean.extend([math.nan]*len(mean))
