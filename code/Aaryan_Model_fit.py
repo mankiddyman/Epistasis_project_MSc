@@ -150,10 +150,6 @@ for i in SM_names:
 
     fig, ((Sensor, Regulator), (Output, Stripe)) = plt.subplots(2,2, constrained_layout=True)
     
-
-
-
-
     WT_Plotter(Sensor, "Sensor", {'color':'red'})
     WT_fit_plot(Sensor, Sensor_est_array_initial, {'color':'black'},label="Initial Guess")
     WT_fit_plot(Sensor, Sensor_est_array,{'color':'red'},label="Converged")

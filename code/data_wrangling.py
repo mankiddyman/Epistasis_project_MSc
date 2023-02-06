@@ -101,4 +101,15 @@ sm_df = pd.DataFrame({"Inducer" :  inducer,"Mutant_ID": genotype,'Output_mean': 
 
 meta_dict["SM"] = sm_df
 
+#now read in the double mutant data, only collected for low, medium, high inducer concs?
+#low = 0, medium = 0.0002, high = 0.2
+Stripe_data = pd.ExcelFile('../data/Source_Data.xlsx')
+Stripe_data.sheet_names
+stripes = pd.read_excel(Stripe_data, 'Figure 2', header = 1)
+DM_stripes = stripes[stripes['genotype category'] == "pairwise"]
+
+#triple mutants
+TM_stripes = stripes[stripes['genotype category'] == "triple"]
+
+
 #%%
