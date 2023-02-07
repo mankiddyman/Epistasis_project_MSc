@@ -27,7 +27,7 @@ def model_leaky(I_conc,A_s,B_s,C_s,N_s,L_r,A_r,C_r,N_r,L_o,A_o,C_o,N_o):
     Stripe = L_o+(A_o)/(1+np.power(C_o*Sens_Reg,N_o))
     return Sensor, Regulator, Output, Stripe
 
-def model_4_pred(I_conc,As,Bs,Cs,Ns,Ar,Br,Cr,Nr,Ah,Bh,Ch,Ao,Bo,Co,No):
+def model_4_pred(I_conc,As,Bs,Cs,Ns,Ar,Br,Cr,Nr,Ah,Bh,Ch,Fo,Ao,Bo,Co,No):
     #S is subscript for parameters corresponding to Sensor
     #R is subscript for parameters corresponding to Regulator
     #H is subscript for parameters corresponding to the half network I->S -| O
@@ -43,6 +43,7 @@ def model_4_pred(I_conc,As,Bs,Cs,Ns,Ar,Br,Cr,Nr,Ah,Bh,Ch,Ao,Bo,Co,No):
     Output_half += Ah
 
     Output = Ao*Ah + Bo*Bh/(1+np.power(Ch*(Sensor+Co*Regulator),No))
+    Output*=Fo
     #I wonder why we describe different repression strengths for repression by LacI_regulator and LacI_sensor?
     return Sensor,Regulator,Output_half, Output
     

@@ -54,14 +54,18 @@ def min_fun(coefficients,data=data):
 #%%
 #start_coeffs =stats.uniform(0.001, 100).rvs(15)
 #print(start_coeffs)
-start_coeffs=[311,17220,1081,0.9 #As,Bs,Cs,Ns
-, 6.80803615e+02,1.88728919e+04,3.91470236e-02,3.74001669e-01, #Ar,Br,Cr,Nr 
-+1.02584227e+03,9.47437625e+04,3.96678625e-03, # Ah, Bh, Ch
-8.58578541e-01,1.05191555e+01,7.15818491e+01,8.30769275e-01] #Ao,Bo,Co,No
+# start_coeffs=[311,17220,1081,0.9 #As,Bs,Cs,Ns
+# , 6.80803615e+02,1.88728919e+04,3.91470236e-02,3.74001669e-01, #Ar,Br,Cr,Nr 
+# +1.02584227e+03,9.47437625e+04,3.96678625e-03, # Ah, Bh, Ch
+# 1,8.58578541e-01,1.05191555e+01,7.15818491e+01,8.30769275e-01] #Fo,Ao,Bo,Co,No
+start_coeffs=[1]*16
+start_coeffs=[7.31790329e+02, 1.63890722e+04, 1.21558902e+03, 1.23445789e+00,2.19715875e+03, 5.09396044e+04, 8.76632583e-03, 1.37272209e+00, 3.97046404e+03, 2.81037530e+04, 5.99908397e-04, 8.61568305e-01, 7.03425130e-01, 7.57153375e+00, 1.25692066e+00, 3.39280741e+00]
+print("starting parameters")
 print(start_coeffs)
 # adding bounds such that all estimated parameters are +ve
-bnds = ((0, None), (0, None), (0, None), (0, None), (0, None), (0, None), (0, None), (0, None), (0, None), (0, None), (0, None), (0, None), (0, None), (0, None), (0, None))
-min_result=minimize(min_fun,x0= start_coeffs ,method='Nelder-Mead',bounds=bnds)
+bnds = ((0, None), (0, None), (0, None), (0, None), (0, None), (0, None), (0, None),(0,None), (0, None), (0, None), (0, None), (0, None), (0, None), (0, None), (0, None), (0, None))
+min_result=minimize(min_fun,x0= start_coeffs ,method='Powell',bounds=bnds,options={"maxiter":1e5,"disp":True})
+
 #plotting the predictions now
 
 #generating estimates
@@ -108,5 +112,6 @@ WT_fit_plot(Stripe, Stripe_est_array_initial, {'color':'black'})
 plt.suptitle("Wild type data plots")
 
 plt.show()
-print(min_result.x)
+print(min_result)
+print("converged parameters \n",min_result.x)
 # %%

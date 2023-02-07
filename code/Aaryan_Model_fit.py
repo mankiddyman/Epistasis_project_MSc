@@ -7,7 +7,6 @@ from Models import *
 from data_wrangling import *
 
 
-
  #change dictionary to list of coeffs
 def coef_dict_to_list(coef_dict):
     return list(coef_dict.values())
@@ -89,9 +88,23 @@ dat_files=[x for x in all_files if '.dat' in x]
 
 SM_names=[x[:-4] for x in dat_files]
 #SM_names=SM_names[0:10] #remove later
+
+#paramater estimates from WT:
+#WT_params = [6.59963463e+02, 1.63471394e+04, 1.25925588e+03, 1.16043953e+00, 1.99831036e+03, 2.04000859e+11, 2.77180774e+06, 8.37522575e-01, 5.47787795e-06, 6.71081447e+04, 1.41294256e-03, 5.41433758e+07,2.12643877e+00, 2.72060461e+00, 1.25044310e+00]
+
+#WT_params = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]   
+WT_params=[6.18047086e+02 ,1.62788566e+04 ,1.30065379e+03 ,1.09654125e+00,1.91617561e+03 ,1.88742408e+04 ,9.03017988e-03 ,8.20433340e-01,6.83835638e+02, 3.24643802e+04 ,4.73376905e-04 ,2.82135165e+00,6.32148081e-01 ,9.72768210e-01 ,2.64017386e+00 ,1.91933916e+00]
+
+coeffs = {'A_s': 1,'B_s': 1,'C_s':1,'N_s':0, 'A_r':1,'B_r':1,'C_r':1,'N_r':0,'A_h':1, 'B_h':1, 'C_h':1,'F_o':1 ,'A_o':1,'B_o':1,'C_o': 1,'N_o': 0}
+init_coeffs = coeff_input(WT_params)
+
+#df to compare SM parameter estimates with WT
+df_param_compare = pd.DataFrame(init_coeffs, index = ['WT'])
+rss_initial=min_fun(data=meta_dict['WT'],coefficients=WT_params)
+df_param_compare['rss']=[rss_initial]
+
 #%%
-for i in SM_names:
-    #%%
+for i in SM_names[11:20]:
     SM_mutant_of_interest=i
     print("Fitting Mutant:",SM_mutant_of_interest)
     #use model chosen from Models.py to obtain fit of model to data
@@ -103,50 +116,51 @@ for i in SM_names:
     
 
     #example of above function to get SM dat for Sensor1 mutation:
-
     S1_df = get_data_SM(SM_mutant_of_interest)
 
     # minimizing sum of sqrd deviations of log model and log data
     data_ = S1_df
 
-    #paramater estimates from WT:
-    WT_params = [6.08397103e+02, 1.52504577e+04, 1.66805905e+03, 1.19893355e+00, 6.87964693e+02, 2.34976114e+04, 6.23671728e-02, 3.91730917e-01, 5.90606548e+02, 3.52871257e+04, 5.29890033e-04, 8.29829791e-01, 4.28817019e+00, 3.13322189e+00, 1.80901848e+00]
-   
-    coeffs = {'A_s': 1,'B_s': 1,'C_s':1,'N_s':0, 'A_r':1,'B_r':1,'C_r':1,'N_r':0,'A_h':1, 'B_h':1, 'C_h':1, 'A_o':1,'B_o':1,'C_o': 1,'N_o': 0}
- 
-    #%%
-   
-
     init_coeffs = coeff_input(WT_params)
 
-    
-    #%%
     print("starting paramaters:", WT_params)
-    bnds = ((0, None), (0, None), (0, None), (0, None), (0, None), (0, None), (0, None), (0, None), (0, None), (0, None), (0, None), (0, None), (0, None), (0, None), (0, None))
+    
+    if SM_mutant_of_interest.startswith("Sensor"):
+        bnds = ((0, None), (0, None), (0, None), (0, None), (WT_params[4], WT_params[4]), (WT_params[5],WT_params[5]), (WT_params[6], WT_params[6]),(WT_params[7], WT_params[7]), (WT_params[8],WT_params[8]), (WT_params[9],WT_params[9]), (WT_params[10],WT_params[10]), (0,None), (WT_params[12],WT_params[12]), (WT_params[13],WT_params[13]), (WT_params[14],WT_params[14]),(WT_params[15],WT_params[15]))
+    elif SM_mutant_of_interest.startswith("Regulator"):
+        bnds = ((WT_params[0],WT_params[0]), (WT_params[1],WT_params[1]), (WT_params[2],WT_params[2]) ,(WT_params[3],WT_params[3]),(0, None) ,(0, None),(0, None),(0, None), (WT_params[8],WT_params[8]), (WT_params[9],WT_params[9]), (WT_params[10],WT_params[10]), (0,None), (WT_params[12],WT_params[12]), (WT_params[13],WT_params[13]), (WT_params[14],WT_params[14]),(WT_params[15],WT_params[15]))
+    elif SM_mutant_of_interest.startswith("Output"):
+        bnds = ((WT_params[0],WT_params[0]), (WT_params[1],WT_params[1]), (WT_params[2],WT_params[2]) ,(WT_params[3],WT_params[3]),(WT_params[4], WT_params[4]), (WT_params[5],WT_params[5]), (WT_params[6], WT_params[6]),(WT_params[7], WT_params[7]), (0, None),(0, None),(0, None),(0, None),(0, None),(0, None),(0, None),(0, None))
+
     min_result=minimize(min_fun,args=(data_),x0= WT_params ,method='Nelder-Mead',bounds=bnds,options={"maxiter":1e5,"disp":True})
     print("finished fitting")
-    #plotting the predictions now
 
+    #plotting the predictions now
     #generating estimates
     Sensor_est_array,Regulator_est_array,Output_est_array, Stripe_est_array = model_4_pred(data_.S,*min_result.x)
 
     Sensor_est_array_initial,Regulator_est_array_initial,Output_est_array_initial, Stripe_est_array_initial = model_4_pred(data_.S,*WT_params)
 
-
     Signal=data_.S
-    #%%
-    
-
 
     #now need to calculate residual sum of logsquares
     #defined as value of minimisation function for converged parameter set
     rss_converged=min_fun(data=data_,coefficients=min_result.x)
     rss_initial=min_fun(data=data_,coefficients=WT_params)
     rss_relative=rss_initial/(rss_converged+rss_initial) #% of rss explained by convergence
-    WT_params = [6.08397103e+02, 1.52504577e+04, 1.66805905e+03, 1.19893355e+00, 6.87964693e+02, 2.34976114e+04, 6.23671728e-02, 3.91730917e-01, 5.90606548e+02, 3.52871257e+04, 5.29890033e-04, 8.29829791e-01, 4.28817019e+00, 3.13322189e+00, 1.80901848e+00]
+    #WT_params = [6.08397103e+02, 1.52504577e+04, 1.66805905e+03, 1.19893355e+00, 6.87964693e+02, 2.34976114e+04, 6.23671728e-02, 3.91730917e-01, 5.90606548e+02, 3.52871257e+04, 5.29890033e-04, 8.29829791e-01, 4.28817019e+00, 3.13322189e+00, 1.80901848e+00]
 
     df_parameters=pd.DataFrame({"epsilon":min_result.x-WT_params,"Initial_guesses":WT_params,"Converged":min_result.x})
     df_parameters.index=coeffs.keys()
+
+    
+    #add mutant parameter values to df_param_compare to compare
+    a = min_result.x
+    a = np.append(a, rss_converged)
+    dfa = pd.DataFrame(a, index =list(df_param_compare)).T
+    dfa = dfa.set_index(pd.Series([SM_mutant_of_interest]))
+    df_param_compare = pd.concat([df_param_compare, dfa])
+
 
     fig, ((Sensor, Regulator), (Output, Stripe)) = plt.subplots(2,2, constrained_layout=True)
     
@@ -199,10 +213,12 @@ for i in SM_names:
     print("final parameter estimates:", min_result.x)
 
     fig.savefig(os.path.join("..","results",f"{SM_mutant_of_interest}"+".pdf"), bbox_inches='tight')
+print("done fitting, now exporting")
+df_param_compare.to_excel('../data/SM_params.xlsx')
     # %%
 from PyPDF2 import PdfMerger
 
-pdfs= [s+".pdf" for s in SM_names]
+pdfs= [os.path.join("..","results",(s+".pdf")) for s in SM_names]
 merger = PdfMerger()
 
 for pdf in pdfs:
