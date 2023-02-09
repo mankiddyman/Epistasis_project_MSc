@@ -6,7 +6,6 @@ import pandas as pd
 import numpy as np
 import re
 
-
 meta_dict={"WT":None,"SM":None,"DM":None,"TM":None}
 
 
@@ -105,11 +104,12 @@ meta_dict["SM"] = sm_df
 #low = 0, medium = 0.0002, high = 0.2
 Stripe_data = pd.ExcelFile('../data/Source_Data.xlsx')
 Stripe_data.sheet_names
-stripes = pd.read_excel(Stripe_data, 'Figure 2', header = 1)
-DM_stripes = stripes[stripes['genotype category'] == "pairwise"]
-
+stripes = pd.read_excel(Stripe_data, 'Figure 2', header = 1, usecols="A:E")
+DM_stripes = stripes[(stripes['genotype category'] == "pairwise") | (stripes['genotype'] == "WT")]
 #triple mutants
-TM_stripes = stripes[stripes['genotype category'] == "triple"]
+TM_stripes = stripes[(stripes['genotype category'] == "triple") | (stripes['genotype'] == "WT")]
 
+meta_dict["DM"] = DM_stripes
+meta_dict["TM"] = TM_stripes
 
 #%%
