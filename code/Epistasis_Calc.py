@@ -4,13 +4,13 @@ import numpy as np
 from data_wrangling import meta_dict
 from Models import *
 import re
-import itertools as iter
+from itertools import permutations
 
 #Calculate epistasis for all double and triple mutants from observed and expected flourcsence at low, medium and high inducer concs
 
 df_DM = meta_dict['DM']
 df_TM = meta_dict['TM']
-df_M = (pd.concat([df_DM, df_TM])).drop_duplicates()
+df_M = (pd.concat([df_DM, df_TM], ignore_index = True)).drop_duplicates()
 
 df_fits = pd.read_excel('../data/SM_params.xlsx').rename(columns={'Unnamed: 0': 'mutant'})
 
@@ -25,33 +25,49 @@ def g_hat(mutant:str, model):
     return g_hat
 
 #log additive expected GFP for double or triple mutants for a given model
-def G_hat(model, mutants:list):
+def G_hat_logadd(model, mutants:list):
     G_hat = g_hat(mutants[0], model)
     for mut in mutants[1:]:
         G_hat = np.multiply(g_hat(mut, model),G_hat)
     G_hat = np.log10(G_hat)
     return G_hat
 
-#get list of possible mutant id names - e.g S1_R1 vs R1_S1
-def get_mut_id(mutants:list):
+#get list of possible mutant id names - e.g ['Sensor1','Regulator1'] --> ['S1_R1' , 'R1_S1']
+def get_mut_ids(mutants:list):
     muts = []
-    for i, mut in enumerate(mutants):
+    for mut in mutants:
         mut_index = re.search("[0-9]",mut).start()
         mutant1_id = f"{mut[:1]}{mut[mut_index:]}"
         muts.extend([mutant1_id])
-    #permutations of mutants to search against in df_TM
-    mut_perms = (list(iter.permutations(muts)))
+    #permutations of mutants to search against in df_M
+    mut_perms = list(permutations(muts))
     for i,ids in enumerate(mut_perms):
         string = ''
         for j in range(len(ids)):
             string += ids[j] +'_'
-        
         mut_perms[i] = string[:-1]
     return mut_perms
 
+#the opposite of get_mut_ids that turns id into list of names e.g. S1_O1 --> ['Sensor1','Regulator1']
+def get_mut_names(mut_id:str):
+    mutant_names = []
+    ids = mut_id.split('_')
+    for mut in ids:
+        if mut.startswith('S'):
+            mut = f"Sensor{mut[1:]}"
+            mutant_names.extend([mut])
+        if mut.startswith('R'):
+            mut = f"Regulator{mut[1:]}"
+            mutant_names.extend([mut])
+        if mut.startswith('O'):
+            mut = f"Output{mut[1:]}"
+            mutant_names.extend([mut])
+    return mutant_names
+
 #observed GFP for double or triple mutants
+#takes list of possible combinations of mutation ids as parameter e.g. ['O1_R1', 'R1_O1']
 def G_obs(mutants:list):
-    mut_perms = get_mut_id(mutants)
+    mut_perms = get_mut_ids(mutants)
     df_mutant = df_M.loc[df_M['genotype'] == mut_perms[0]]
     for mut in mut_perms[1:]:
         dfa = df_M.loc[df_M['genotype'] == mut]
@@ -66,9 +82,24 @@ def G_obs(mutants:list):
     WT_mean = np.array(df_M['obs_fluo_mean'].loc[df_M["genotype"]== "WT"])
     WT_sd = np.array(df_M['obs_SD'].loc[df_M["genotype"]== "WT"])
 
-    G_obs = np.divide(MT_mean, WT_mean)
+    G_obs = np.log10(np.divide(MT_mean, WT_mean))
     return G_obs
 
-def Epistasis(G_obs, G_hat):
-    return G_obs - G_hat
+def Epistasis(model, mutants:list):
+    Epsilon = G_obs(mutants) - G_hat_logadd(model, mutants)
+    return Epsilon
 
+#calculate epistasis for all double mutants
+def get_Eps(model=model_4_pred):
+    Ep_low = []
+    Ep_medium = []
+    Ep_high = []
+    for mut_id in df_M['genotype'][(df_M['inducer level'] == 'low') | (df_M['inducer level'] == 'low')][1:]:
+        mut_names = get_mut_names(mut_id)
+        Ep_low += [Epistasis(model_4_pred, mut_names)[0]]
+        Ep_medium += [Epistasis(model_4_pred, mut_names)[1]]
+        Ep_high += [Epistasis(model_4_pred, mut_names)[2]]
+    Eps = [math.nan]*3 +Ep_low + Ep_medium + Ep_high
+    return Eps
+
+df_M["mean epistasis"] = get_Eps()
