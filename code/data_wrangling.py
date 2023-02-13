@@ -94,17 +94,25 @@ for mutant in SM_names:
         Regulator_stdev.extend([math.nan]*len(mean))
 
 #change inducer values to all floats
-for i in range(len(inducer)):
-    inducer[i] = float(inducer[i])
+#for i in range(len(inducer)):
+ #   inducer[i] = float(inducer[i])
+#    Sensor_mean[432]
 
 #%%
-#There was a missing value for sensor 7 at inducer conc 0.00020, this was entered manually as nan in Sensor7.dat
+#There were missing values for sensor 7 and Output 7 at inducer conc 0.00020, this was entered manually as nan in Sensor7.dat and Output7.dat
 
+#check length and type of inducer, regulator, output, sensor and stripe data for holes in the source data
+count = 0
+for i, data in enumerate(inducer +Sensor_mean+ Output_mean + Regulator_mean + Stripe_mean):
+    if type(data) != float:
+        count += 1
+        print("datapoint", i, "is of type", type(data))
+if count == 0:
+    print("data contains", len(Sensor_mean), "data points. They are of type float")
 
 sm_df = pd.DataFrame({"Inducer" :  inducer,"Mutant_ID": genotype,'Output_mean': Output_mean, 'Output_stdev': Output_stdev, 'Regulator_mean': Regulator_mean,"Regulator_stdev": Regulator_stdev,"Sensor_mean": Sensor_mean,"Sensor_stdev": Sensor_stdev,"Stripe_mean": Stripe_mean,"Stripe_stdev": Stripe_stdev})
 
 meta_dict["SM"] = sm_df
-#!!!Problem - Sensor 7 Incducer concs are set as strings
 sm_df['inducer'] = sm_df['Inducer'][432].astype(float)
 
 #now read in the double mutant data, only collected for low, medium, high inducer concs?
