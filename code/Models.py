@@ -50,26 +50,25 @@ def model_4_pred(I_conc,As,Bs,Cs,Ns,Ar,Br,Cr,Nr,Ah,Bh,Ch,Fo,Ao,Bo,Co,No):
 
 
 # thermodynamics model
-def thermodynamic_model(a_s,b_s,a_r,b_r,a_oh,b_oh,a_o,b_o,Ki,Kii,Kps,Kpr,Ks,Kpo,K_lacI,I,P,C_ip,C_iip,C_ps,C_po_lacI):
+def thermodynamic_model(a_s,a_r,a_oh,a_o,Ki,Kii,Kps,Kpr,Ks,Kpo,K_lacI,I,P,C_ip,C_iip,C_ps,C_po_lacI):
 
-    # a_s, a_r, a_oh, a_o represent the production rates 
-    # b_s, b_r, b_oh, b_o represent the degradation rates
+    # a_s, a_r, a_oh, a_o represent the production rates divided by the degradation rates
     # I represents arabinose
     # P represents polymerase
     # Ki, Kii, Kps, Kpr, Ks, Kpo, K_lacI represent the binding affinity of the interaction
     # C_ip, C_iip, C_ps, C_po_lacI represent the level of cooperative binding between activator or repressor with polymerase
 
     Sensor = a_s*(Ki*I*Kps*P*C_ip+Kps*P+Kii*np.power(I,2)*Kps*P*C_iip)
-    Sensor /= b_s*(1+Ki*I+Ki*I*Kps*P*C_ip+Kps*P+Kii*np.power(I,2)*Kps*P*C_iip)
+    Sensor /= (1+Ki*I+Ki*I*Kps*P*C_ip+Kps*P+Kii*np.power(I,2)*Kps*P*C_iip)
 
     Regulator = a_r*(Kpr*P+Kpr*P*Ks*Sensor*C_ps)
-    Regulator /= b_r*(1+Kpr*P+Kpr*P*Ks*S*C_ps+Ks*Sensor)
+    Regulator /= (1+Kpr*P+Kpr*P*Ks*Sensor*C_ps+Ks*Sensor)
 
     Output_half = a_oh*(Kpo*P+K_lacI*Sensor*Kpo*P*C_po_lacI)
-    Output_half /= b_oh*(1+Kpo*P+K_lacI*Sensor*Kpo*P*C_po_lacI+K_lacI*Sensor)
+    Output_half /= (1+Kpo*P+K_lacI*Sensor*Kpo*P*C_po_lacI+K_lacI*Sensor)
 
     Output = a_o*(Kpo*P+K_lacI*(Sensor+Regulator)*Kpo*P*C_po_lacI)
-    Output /= b_o*(1+Kpo*P+K_lacI*(Sensor+Regulator)*Kpo*P*C_po_lacI+K_lacI*(Sensor+Regulator))
+    Output /= (1+Kpo*P+K_lacI*(Sensor+Regulator)*Kpo*P*C_po_lacI+K_lacI*(Sensor+Regulator))
 
     return Sensor, Regulator, Output_half, Output
 
