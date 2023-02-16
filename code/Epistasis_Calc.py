@@ -158,13 +158,22 @@ Epsistases = get_Eps()
 df_M["mean_epistasis"] = Epsistases[0]
 df_M["pVal_epistasis"] = Epsistases[1]
 
-df_Eps = df_M.loc[(df_M['inducer level'] == 'low') & (df_M['genotype category'] != 'single')].copy()
+#get column of booleans for statisti cally significant epistases
+df_M['Sig_Epistasis'] = np.where(df_M['pVal_epistasis'] < 0.05, True, False)
+df_Eps = df_M.loc[(df_M['inducer level'] == 'low') & (df_M['genotype category'] != 'single'), ['genotype category', 'Sig_Epistasis']].copy()
 
+#inspect inducer dependence epistases given a model
 Eps_ml = np.subtract(df_M['mean_epistasis'][df_M['inducer level'] == 'medium'].to_numpy() , df_M['mean_epistasis'][df_M['inducer level'] == 'low'].to_numpy())
 Eps_hm = np.subtract(df_M['mean_epistasis'][df_M['inducer level'] == 'high'].to_numpy() , df_M['mean_epistasis'][df_M['inducer level'] == 'medium'].to_numpy())
 
-df_Eps[['med-low', 'high-med']] = [Eps_ml[1:], Eps_hm[1:]]
-df_Eps['med-low']= list(Eps_ml[1:])
+df_Eps['high-med'] =Eps_hm[1:]
+df_Eps['med-low']= Eps_ml[1:]
+
+#export to a spreadsheet here
+
+#plot inducer dependent epistases
+cols = np.where(df_Eps['Sig_Epistasis'] == False,'k',np.where(df_Eps['genotype category'] == 'pairwise','b','r'))
+plt.scatter(df_Eps['med-low'], df_Eps['high-med'], edgecolors='black', c = cols)
 
 plt.hist(df_M['mean epistasis'][df_M['genotype category']== 'triple'])
 
