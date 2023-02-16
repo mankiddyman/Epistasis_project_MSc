@@ -5,7 +5,8 @@ from data_wrangling import meta_dict
 from Models import *
 import re
 from itertools import permutations
-import matplotlib.pyplot as plt 
+import matplotlib.pyplot as plt
+from scipy import stats
 
 #Calculate epistasis for all double and triple mutants from observed and expected flourcsence at low, medium and high inducer concs
 
@@ -27,12 +28,13 @@ g_WT_sd = np.array(df_DM['obs_SD'][df_DM['genotype']=='WT'])
 
 #calculates the GFP for a single mutant relative to WT
 def g(mutant:str):
-    mutant
     g_single = np.empty(len(I_conc))
+    g_single_std = np.empty(len(I_conc))
     for i, conc in enumerate(list(I_conc.values())):
         g_single[i] = df_S['Stripe_mean'][(df_S['Inducer'] == conc) & (df_S['Mutant_ID'] == mutant)]
+        g_single_std[i] = df_S['Stripe_stdev'][(df_S['Inducer'] == conc) & (df_S['Mutant_ID'] == mutant)]
     g_single = np.divide(g_single, g_WT)
-    return g_single
+    return g_single , g_single_std
 
 #expected flourecence for a set set of parameters and a chosen model at concentrations in I_conc dictionary relative to WT
 def g_hat(mutant:str, model):
@@ -42,11 +44,15 @@ def g_hat(mutant:str, model):
 
 #expected log fold flourecence for mutants assuming log additivity of single mutants
 def G_hat_logadd(mutants:list):
-    G_hat_la = g(mutants[0])
+    G_hat_la = g(mutants[0])[0]
+    G_hat_la_std = np.power(g(mutants[0])[1], 2)
     for mut in mutants[1:]:
-        G_hat_la = np.multiply(g(mut),G_hat_la)
-    G_hat_la = np.log10(G_hat_la)  
-    return G_hat_la
+        G_hat_la = np.multiply(g(mut)[0],G_hat_la)
+        G_hat_la_std += np.power(g(mut)[1], 2)
+    G_hat_la = np.log10(G_hat_la)
+    x = np.power(G_hat_la_std, 1/2)
+    G_hat_la_std = np.multiply(G_hat_la, x)
+    return G_hat_la, G_hat_la_std
 
 #log additive expected GFP for double or triple mutants for a given model
 def G_hat(model, mutants:list):
@@ -101,39 +107,64 @@ def G_obs(mutants:list):
         dfa = df_M.loc[df_M['genotype'] == mut]
         df_mutant = pd.concat([df_mutant, dfa])    
     #get mean and std for low, med, high inducer concs
-    #assumes low inducer concs come above medium, which come before high in mutant data
+    #NB - assumes low inducer concs come above medium, which come before high in mutant data
     MT_mean = np.array(df_mutant['obs_fluo_mean'])
     MT_sd = np.array(df_mutant['obs_SD'])
-
-    #WT flourecence mean and sd
-    WT_mean = np.array(df_M['obs_fluo_mean'].loc[df_M["genotype"]== "WT"])
-    WT_sd = np.array(df_M['obs_SD'].loc[df_M["genotype"]== "WT"])
-    G_obs = np.log10(np.divide(MT_mean, WT_mean))
-    return G_obs
+    G_obs = np.log10(np.divide(MT_mean, g_WT))
+    return G_obs, MT_sd
 
 def Epistasis(mutants:list, model = 'logadd'):
+    G = G_obs(mutants)
+    G_obs_mean = G[0]
+    G_obs_std = G[1]
     if model == 'logadd':
-        Epsilon = G_obs(mutants) - G_hat_logadd(mutants)
+        Ghat_logadd = G_hat_logadd(mutants)
+        Ghat_logadd_mean = Ghat_logadd[0]
+        Ghat_logadd_std = Ghat_logadd[1]
+        Epsilon =  G[0] - Ghat_logadd[0]
+        p_val = stats.ttest_ind_from_stats(mean1 = Ghat_logadd_mean,std1 = Ghat_logadd_std, nobs1 = 3, mean2 = G_obs_mean, std2 = G_obs_std, nobs2 = 3)[1]  
     else:
-        Epsilon = G_obs(mutants) - G_hat(model, mutants)
-    return Epsilon
+        Ghat = G_hat(model, mutants)
+        Epsilon = G[0] - Ghat
+        p_val = 0
+    return Epsilon, p_val
 
 #calculate epistasis for all double mutants
 def get_Eps(model='logadd'):
     Ep_low = []
+    Ep_low_pVal = []
     Ep_medium = []
+    Ep_med_pVal = []
     Ep_high = []
-    for mut_id in df_M['genotype'][(df_M['inducer level'] == 'low')][1:]:
-        print(mut_id)
+    Ep_high_pVal = []
+    print("printing every 100th mutant processed to show progress...")
+    for i, mut_id in enumerate(df_M['genotype'][(df_M['inducer level'] == 'low')][1:]):
+        if i % 100 == 0:
+            print(mut_id)
         mut_names = get_mut_names(mut_id)
         #error: stops at Sensor7 - problem searching df_S for "0.0002"
-        Ep_low += [Epistasis(mut_names, model)[0]]
-        Ep_medium += [Epistasis(mut_names, model)[1]]
-        Ep_high += [Epistasis(mut_names, model)[2]]
-    Eps = [math.nan]*3 +Ep_low + Ep_medium + Ep_high
-    return Eps
+        Ep_low += [Epistasis(mut_names, model)[0][0]]
+        Ep_low_pVal += [Epistasis(mut_names, model)[0][0]]
+        Ep_medium += [Epistasis(mut_names, model)[0][1]]
+        Ep_med_pVal += [Epistasis(mut_names, model)[1][1]]
+        Ep_high += [Epistasis(mut_names, model)[0][2]]
+        Ep_high_pVal += [Epistasis(mut_names, model)[1][2]]
 
-df_M["mean_epistasis"] = get_Eps()
+    Eps = [math.nan]*3 +Ep_low + Ep_medium + Ep_high
+    Eps_pVal = [math.nan]*3 +Ep_low_pVal + Ep_med_pVal + Ep_high_pVal
+    return Eps, Eps_pVal
+
+Epsistases = get_Eps()
+df_M["mean_epistasis"] = Epsistases[0]
+df_M["pVal_epistasis"] = Epsistases[1]
+
+df_Eps = df_M.loc[(df_M['inducer level'] == 'low') & (df_M['genotype category'] != 'single')].copy()
+
+Eps_ml = np.subtract(df_M['mean_epistasis'][df_M['inducer level'] == 'medium'].to_numpy() , df_M['mean_epistasis'][df_M['inducer level'] == 'low'].to_numpy())
+Eps_hm = np.subtract(df_M['mean_epistasis'][df_M['inducer level'] == 'high'].to_numpy() , df_M['mean_epistasis'][df_M['inducer level'] == 'medium'].to_numpy())
+
+df_Eps[['med-low', 'high-med']] = [Eps_ml[1:], Eps_hm[1:]]
+df_Eps['med-low']= list(Eps_ml[1:])
 
 plt.hist(df_M['mean epistasis'][df_M['genotype category']== 'triple'])
 

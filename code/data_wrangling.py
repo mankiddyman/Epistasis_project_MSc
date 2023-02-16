@@ -113,7 +113,6 @@ if count == 0:
 sm_df = pd.DataFrame({"Inducer" :  inducer,"Mutant_ID": genotype,'Output_mean': Output_mean, 'Output_stdev': Output_stdev, 'Regulator_mean': Regulator_mean,"Regulator_stdev": Regulator_stdev,"Sensor_mean": Sensor_mean,"Sensor_stdev": Sensor_stdev,"Stripe_mean": Stripe_mean,"Stripe_stdev": Stripe_stdev})
 
 meta_dict["SM"] = sm_df
-sm_df['inducer'] = sm_df['Inducer'][432].astype(float)
 
 #now read in the double mutant data, only collected for low, medium, high inducer concs?
 #low = 0, medium = 0.0002, high = 0.2
