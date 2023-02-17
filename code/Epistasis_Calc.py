@@ -122,7 +122,11 @@ def Epistasis(mutants:list, model = 'logadd'):
         Ghat_logadd_mean = Ghat_logadd[0]
         Ghat_logadd_std = Ghat_logadd[1]
         Epsilon =  G[0] - Ghat_logadd[0]
-        p_val = stats.ttest_ind_from_stats(mean1 = Ghat_logadd_mean,std1 = Ghat_logadd_std, nobs1 = 3, mean2 = G_obs_mean, std2 = G_obs_std, nobs2 = 3)[1]  
+        # performing Mann-Whitney U test
+        p_val_object = stats.mannwhitneyu(Ghat_logadd_mean, G_obs_mean, alternative='two-sided')
+        p_val_item = getattr(p_val_object, 'pvalue')
+        p_val_list = [p_val_item,p_val_item,p_val_item]
+        p_val = np.array(p_val_list)
     else:
         Ghat = G_hat(model, mutants)
         Epsilon = G[0] - Ghat
@@ -158,6 +162,51 @@ Epsistases = get_Eps()
 df_M["mean_epistasis"] = Epsistases[0]
 df_M["pVal_epistasis"] = Epsistases[1]
 
+#%%
+# AK
+# Mann-Whitney U test does not assume normality
+# changes were made to Epistasis function 
+
+# check output type for p value for T-test for means of two independent samples
+mutants = ['Output1', 'Sensor1']
+G = G_obs(mutants)
+G_obs_mean = G[0]
+G_obs_std = G[1]
+Ghat_logadd = G_hat_logadd(mutants)
+Ghat_logadd_mean = Ghat_logadd[0]
+Ghat_logadd_std = Ghat_logadd[1]
+Epsilon =  G[0] - Ghat_logadd[0]
+ttest_p_val = stats.ttest_ind_from_stats(mean1 = Ghat_logadd_mean,
+std1 = Ghat_logadd_std, nobs1 = 3,mean2 = G_obs_mean, std2 = G_obs_std,
+nobs2 = 3)[1]
+ttest_p_val
+# check output p value for Mann-Whitney U test
+mann_p_val_object = stats.mannwhitneyu(Ghat_logadd_mean, G_obs_mean, alternative='two-sided')
+mann_p_val = getattr(mann_p_val_object, 'pvalue') 
+mann_p_val
+
+# histograms
+
+# histogram for p values
+# better distribution of p values
+df_M["pVal_epistasis"].hist()
+plt.title("Histogram of p values")
+
+# check if generated p values are equal to the p values from initial data
+copy = df_M
+copy1 = copy.dropna(subset=['pVal_epistasis'])
+output_pval =  list(copy1["pVal_epistasis"])
+n_pval = len(output_pval)
+check_data = pd.ExcelFile('../data/Source_Data.xlsx')
+check_df = pd.read_excel(check_data, 'Figure 2', header = 1, usecols="K")
+checkdf = check_df.dropna(subset=['p_value'])
+check_pval = list(checkdf['p_value'])
+n_check = len(check_pval)
+if output_pval == check_pval:
+    print("True")
+else:
+    print("False")
+#%%
 #get column of booleans for statisti cally significant epistases
 df_M['Sig_Epistasis'] = np.where(df_M['pVal_epistasis'] < 0.05, True, False)
 df_Eps = df_M.loc[(df_M['inducer level'] == 'low') & (df_M['genotype category'] != 'single'), ['genotype category', 'Sig_Epistasis']].copy()
