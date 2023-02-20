@@ -35,7 +35,8 @@ def g(mutant:str):
         g_single[i] = df_S['Stripe_mean'][(df_S['Inducer'] == conc) & (df_S['Mutant_ID'] == mutant)]
         g_single_std[i] = df_S['Stripe_stdev'][(df_S['Inducer'] == conc) & (df_S['Mutant_ID'] == mutant)]
     g_single = np.divide(g_single, g_WT)
-    return g_single , g_single_std
+    g_single_std_rel = np.divide(g_single_std, g_WT_sd)
+    return g_single , g_single_std, g_single_std_rel
 
 #expected flourecence for a set set of parameters and a chosen model at concentrations in I_conc dictionary relative to WT
 def g_hat(mutant:str, model):
@@ -47,13 +48,17 @@ def g_hat(mutant:str, model):
 def G_hat_logadd(mutants:list):
     G_hat_la = g(mutants[0])[0]
     G_hat_la_std = np.power(g(mutants[0])[1], 2)
+    G_hat_la_std_rel = np.power(g(mutants[0])[2], 2)
     for mut in mutants[1:]:
         G_hat_la = np.multiply(g(mut)[0],G_hat_la)
         G_hat_la_std += np.power(g(mut)[1], 2)
+        G_hat_la_std_rel += np.power(g(mut)[2], 2)
     G_hat_la = np.log10(G_hat_la)
     x = np.power(G_hat_la_std, 1/2)
+    y = np.power(G_hat_la_std_rel, 1/2)
     G_hat_la_std = np.multiply(G_hat_la, x)
-    return G_hat_la, G_hat_la_std
+    G_hat_la_std_rel = np.multiply(G_hat_la, y)
+    return G_hat_la, G_hat_la_std, G_hat_la_std_rel
 
 #log additive expected GFP for double or triple mutants for a given model
 def G_hat(model, mutants:list):
@@ -61,8 +66,12 @@ def G_hat(model, mutants:list):
     df_fits1 = df_fits.copy(deep = False)
     for mut in mutants[1:]:
         param_id = f"_{mut[0].lower()}"
-        columns_OI = df_fits1.filter(like=param_id).columns #parameters of interest to be replaced with mutant parameters
-        df_fits1.loc[df_fits1['mutant'] == mutants[0],columns_OI] = list(df_fits1[df_fits1['mutant'] == mut].filter(like=param_id).values)
+        columns_OI = list(df_fits1.filter(like=param_id).columns) #parameters of interest to be replaced with mutant parameters
+        new_params = df_fits1[df_fits1['mutant'] == mut].filter(like=param_id)#.values
+        if param_id.endswith('o'):
+            columns_OI += list(df_fits1.filter(like='_h').columns)
+            new_params = pd.concat([new_params, df_fits1[df_fits1['mutant'] == mut].filter(like= '_h')], axis = 1)
+        df_fits1.loc[df_fits1['mutant'] == mutants[0],columns_OI] = new_params.values
     #get parameter values for mutant combination
     G_hat = np.log10(g_hat(mutants[0], model))
     return G_hat
@@ -123,12 +132,20 @@ def Epistasis(mutants:list, model = 'logadd'):
         Ghat_logadd_mean = Ghat_logadd[0]
         Ghat_logadd_std = Ghat_logadd[1]
         Epsilon =  G[0] - Ghat_logadd[0]
-        p_val = stats.ttest_ind_from_stats(mean1 = Ghat_logadd_mean,std1 = Ghat_logadd_std, nobs1 = 3, mean2 = G_obs_mean, std2 = G_obs_std, nobs2 = 3)[1]  
+        # performing Mann-Whitney U test
+        p_val_object = stats.mannwhitneyu
+        p_val_item = getattr(p_val_object, 'pvalue')
+        (Ghat_logadd_mean, G_obs_mean, alternative='two-sided')p_val_list = [p_val_item,p_val_item,p_val_item]
+        p_val = np.array(p_val_list)
     else:
         Ghat = G_hat(model, mutants)
         Epsilon = G[0] - Ghat
         p_val = 0
     return Epsilon, p_val
+
+stats.ttest_ind_from_stats(mean1 = 1091,
+std1 = 252, nobs1 = 3,mean2 = 1730, std2 = 303,
+nobs2 = 3)[1]
 
 #calculate epistasis for all double mutants
 def get_Eps(model='logadd'):
@@ -159,6 +176,52 @@ Epsistases = get_Eps()
 df_M["mean_epistasis"] = Epsistases[0]
 df_M["pVal_epistasis"] = Epsistases[1]
 
+
+#%%
+# AK
+# Mann-Whitney U test does not assume normality
+# changes were made to Epistasis function 
+
+# check output type for p value for T-test for means of two independent samples
+mutants = ['Output1', 'Regulator1']
+G = G_obs(mutants)
+G_obs_mean = G[0]
+G_obs_std = G[1]
+Ghat_logadd = G_hat_logadd(mutants)
+Ghat_logadd_mean = Ghat_logadd[0]
+Ghat_logadd_std = Ghat_logadd[1]
+Epsilon =  G[0] - Ghat_logadd[0]
+ttest_p_val = stats.ttest_ind_from_stats(mean1 = Ghat_logadd_mean,
+std1 = Ghat_logadd_std, nobs1 = 3,mean2 = G_obs_mean, std2 = G_obs_std,
+nobs2 = 3)[1]
+ttest_p_val
+# check output p value for Mann-Whitney U test
+mann_p_val_object = stats.mannwhitneyu(Ghat_logadd_mean, G_obs_mean, alternative='two-sided')
+mann_p_val = getattr(mann_p_val_object, 'pvalue') 
+mann_p_val
+
+# histograms
+
+# histogram for p values
+# better distribution of p values
+df_M["pVal_epistasis"].hist()
+plt.title("Histogram of p values")
+
+# check if generated p values are equal to the p values from initial data
+copy = df_M
+copy1 = copy.dropna(subset=['pVal_epistasis'])
+output_pval =  list(copy1["pVal_epistasis"])
+n_pval = len(output_pval)
+check_data = pd.ExcelFile('../data/Source_Data.xlsx')
+check_df = pd.read_excel(check_data, 'Figure 2', header = 1, usecols="K")
+checkdf = check_df.dropna(subset=['p_value'])
+check_pval = list(checkdf['p_value'])
+n_check = len(check_pval)
+if output_pval == check_pval:
+    print("True")
+else:
+    print("False")
+#%%
 #get column of booleans for statisti cally significant epistases
 df_M['Sig_Epistasis'] = np.where(df_M['pVal_epistasis'] < 0.05, True, False)
 df_Eps = df_M.loc[(df_M['inducer level'] == 'low') & (df_M['genotype category'] != 'single'), ['genotype category', 'Sig_Epistasis']].copy()
@@ -173,46 +236,5 @@ df_Eps['med-low']= Eps_ml[1:]
 #export to a spreadsheet
 df_M.to_excel('../data/df_M.xlsx')
 df_Eps.to_excel('../data/df_Eps.xlsx')
-
-#plot significant epistasis
-cols = np.where(df_M['Sig_Epistasis'] == True, 'darkgray', np.where(df_M['genotype category'] == 'pairwise', 'palegreen', 'lightskyblue'))
-alphas = np.where(df_M['Sig_Epistasis'] == True, 0.5, 0.8)
-fig, ax = plt.subplots()
-ax.scatter(df_M['pVal_epistasis'], df_M['mean_epistasis'], c = cols,alpha = alphas, zorder = 2.5, edgecolor = 'black' )
-ax.axvline(0.05, c = 'darkgray', ls = '--')
-plt.show
-
-#plot inducer dependant epistasis
-cols = np.where(df_Eps['Sig_Epistasis'] == True, 'darkgray', np.where(df_Eps['genotype category'] == 'pairwise', 'palegreen', 'lightskyblue'))
-alphas = np.where(df_Eps['Sig_Epistasis'] == True, 0.5, 0.8)
-n_notSig = np.count_nonzero(cols == 'darkgray')
-n_pairwise = np.count_nonzero(cols == 'darkgray')
-n_triplet = np.count_nonzero(cols == 'darkgray')
-prop_upperLeft = np.divide(np.count_nonzero((df_Eps['med-low'] >0) & (df_Eps['high-med'] <0)), len(df_Eps['med-low']))
-prop_lowerRight = np.divide(np.count_nonzero((df_Eps['med-low'] <0) & (df_Eps['high-med'] >0)), len(df_Eps['med-low']))
-prop_upperRight = np.divide(np.count_nonzero((df_Eps['med-low'] >0) & (df_Eps['high-med'] >0)), len(df_Eps['med-low']))
-prop_lowerLeft = np.divide(np.count_nonzero((df_Eps['med-low'] <0) & (df_Eps['high-med'] <0)), len(df_Eps['med-low']))
-
-#%%
-fig, ax = plt.subplots()
-scatter = ax.scatter(df_Eps['med-low'], df_Eps['high-med'], c = cols, alpha = alphas, zorder = 2.5, edgecolor = 'black')
-legend1 = ax.legend(*scatter.legend_elements(), loc="lower left")
-ax.add_artist(legend1)
-ax.axhline(y=0, c = 'darkgray', ls = '--')
-ax.axvline(x=0, c = 'darkgray', ls = '--')
-ax.set_xlim([-1,1])
-ax.set_ylim([-1,1])
-ax.set_xlabel('$\u03B5_{medium}$ - $\u03B5_{low}$')
-ax.set_ylabel('$\u03B5_{high}$ - $\u03B5_{medium}$')
-ax.set_title('inducer dependant Epistasis for '+ 'logadd model')
-
-#proportins mutants in each quadrant
-ax.text(-0.75, -0.75, 'n = '+ str(np.round(prop_lowerLeft*100, 0))+'%', verticalalignment='center', horizontalalignment='center')
-ax.text(0.75, -0.75, 'n = '+ str(np.round(prop_lowerRight*100, 0))+'%', verticalalignment='center', horizontalalignment='center')
-ax.text(-0.75, 0.75, 'n = '+ str(np.round(prop_upperLeft*100, 0))+'%', verticalalignment='center', horizontalalignment='center')
-ax.text(0.75, 0.75, str(np.round(prop_upperRight*100, 0))+'%', verticalalignment='center', horizontalalignment='center')
-plt.show()
-
-#%%
 
 
