@@ -7,6 +7,7 @@ import re
 from itertools import permutations
 import matplotlib.pyplot as plt
 from scipy import stats
+import os
 
 #Calculate epistasis for all double and triple mutants from observed and expected flourcsence at low, medium and high inducer concs
 
@@ -34,7 +35,8 @@ def g(mutant:str):
         g_single[i] = df_S['Stripe_mean'][(df_S['Inducer'] == conc) & (df_S['Mutant_ID'] == mutant)]
         g_single_std[i] = df_S['Stripe_stdev'][(df_S['Inducer'] == conc) & (df_S['Mutant_ID'] == mutant)]
     g_single = np.divide(g_single, g_WT)
-    return g_single , g_single_std
+    g_single_std_rel = np.divide(g_single_std, g_WT_sd)
+    return g_single , g_single_std, g_single_std_rel
 
 #expected flourecence for a set set of parameters and a chosen model at concentrations in I_conc dictionary relative to WT
 def g_hat(mutant:str, model):
@@ -46,13 +48,17 @@ def g_hat(mutant:str, model):
 def G_hat_logadd(mutants:list):
     G_hat_la = g(mutants[0])[0]
     G_hat_la_std = np.power(g(mutants[0])[1], 2)
+    G_hat_la_std_rel = np.power(g(mutants[0])[2], 2)
     for mut in mutants[1:]:
         G_hat_la = np.multiply(g(mut)[0],G_hat_la)
         G_hat_la_std += np.power(g(mut)[1], 2)
+        G_hat_la_std_rel += np.power(g(mut)[2], 2)
     G_hat_la = np.log10(G_hat_la)
     x = np.power(G_hat_la_std, 1/2)
+    y = np.power(G_hat_la_std_rel, 1/2)
     G_hat_la_std = np.multiply(G_hat_la, x)
-    return G_hat_la, G_hat_la_std
+    G_hat_la_std_rel = np.multiply(G_hat_la, y)
+    return G_hat_la, G_hat_la_std, G_hat_la_std_rel
 
 #log additive expected GFP for double or triple mutants for a given model
 def G_hat(model, mutants:list):
@@ -60,8 +66,12 @@ def G_hat(model, mutants:list):
     df_fits1 = df_fits.copy(deep = False)
     for mut in mutants[1:]:
         param_id = f"_{mut[0].lower()}"
-        columns_OI = df_fits1.filter(like=param_id).columns #parameters of interest to be replaced with mutant parameters
-        df_fits1.loc[df_fits1['mutant'] == mutants[0],columns_OI] = list(df_fits1[df_fits1['mutant'] == mut].filter(like=param_id).values)
+        columns_OI = list(df_fits1.filter(like=param_id).columns) #parameters of interest to be replaced with mutant parameters
+        new_params = df_fits1[df_fits1['mutant'] == mut].filter(like=param_id)#.values
+        if param_id.endswith('o'):
+            columns_OI += list(df_fits1.filter(like='_h').columns)
+            new_params = pd.concat([new_params, df_fits1[df_fits1['mutant'] == mut].filter(like= '_h')], axis = 1)
+        df_fits1.loc[df_fits1['mutant'] == mutants[0],columns_OI] = new_params.values
     #get parameter values for mutant combination
     G_hat = np.log10(g_hat(mutants[0], model))
     return G_hat
@@ -123,15 +133,19 @@ def Epistasis(mutants:list, model = 'logadd'):
         Ghat_logadd_std = Ghat_logadd[1]
         Epsilon =  G[0] - Ghat_logadd[0]
         # performing Mann-Whitney U test
-        p_val_object = stats.mannwhitneyu(Ghat_logadd_mean, G_obs_mean, alternative='two-sided')
+        p_val_object = stats.mannwhitneyu
         p_val_item = getattr(p_val_object, 'pvalue')
-        p_val_list = [p_val_item,p_val_item,p_val_item]
+        (Ghat_logadd_mean, G_obs_mean, alternative='two-sided')p_val_list = [p_val_item,p_val_item,p_val_item]
         p_val = np.array(p_val_list)
     else:
         Ghat = G_hat(model, mutants)
         Epsilon = G[0] - Ghat
         p_val = 0
     return Epsilon, p_val
+
+stats.ttest_ind_from_stats(mean1 = 1091,
+std1 = 252, nobs1 = 3,mean2 = 1730, std2 = 303,
+nobs2 = 3)[1]
 
 #calculate epistasis for all double mutants
 def get_Eps(model='logadd'):
@@ -162,13 +176,14 @@ Epsistases = get_Eps()
 df_M["mean_epistasis"] = Epsistases[0]
 df_M["pVal_epistasis"] = Epsistases[1]
 
+
 #%%
 # AK
 # Mann-Whitney U test does not assume normality
 # changes were made to Epistasis function 
 
 # check output type for p value for T-test for means of two independent samples
-mutants = ['Output1', 'Sensor1']
+mutants = ['Output1', 'Regulator1']
 G = G_obs(mutants)
 G_obs_mean = G[0]
 G_obs_std = G[1]
@@ -218,13 +233,8 @@ Eps_hm = np.subtract(df_M['mean_epistasis'][df_M['inducer level'] == 'high'].to_
 df_Eps['high-med'] =Eps_hm[1:]
 df_Eps['med-low']= Eps_ml[1:]
 
-#export to a spreadsheet here
+#export to a spreadsheet
+df_M.to_excel('../data/df_M.xlsx')
+df_Eps.to_excel('../data/df_Eps.xlsx')
 
-#plot inducer dependent epistases
-cols = np.where(df_Eps['Sig_Epistasis'] == False,'k',np.where(df_Eps['genotype category'] == 'pairwise','b','r'))
-plt.scatter(df_Eps['med-low'], df_Eps['high-med'], edgecolors='black', c = cols)
 
-plt.hist(df_M['mean epistasis'][df_M['genotype category']== 'triple'])
-
-np.mean(df_M['mean epistasis'][df_M['genotype category']== 'pairwise'])
-np.power(np.mean(df_M['mean epistasis'][df_M['genotype category']== 'triple']),10)

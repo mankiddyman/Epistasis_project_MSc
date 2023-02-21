@@ -13,7 +13,7 @@ meta_dict["WT"]=pd.read_csv('../data/WT_single.csv')
 #now single mutants (SM)
 path_main = "../data/mutants_separated"
 
-#and the SM stripe data
+#and the SM stripe daos.listdir(os.path.join(path_main,"mutants_separated"))
 Stripe_data = pd.ExcelFile('../data/Source_Data.xlsx')
 Stripe_data.sheet_names
 SM_stripes = pd.read_excel(Stripe_data, 'Figure 1')
