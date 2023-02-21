@@ -64,7 +64,7 @@ print("starting parameters")
 print(start_coeffs)
 # adding bounds such that all estimated parameters are +ve
 bnds = ((0, None), (0, None), (0, None), (0, None), (0, None), (0, None), (0, None),(0,None), (0, None), (0, None), (0, None), (0, None), (0, None), (0, None), (0, None), (0, None))
-min_result=minimize(min_fun,x0= start_coeffs ,method='Powell',bounds=bnds,options={"maxiter":1e5,"disp":True})
+min_result=minimize(min_fun,x0= start_coeffs ,method='Nelder-Mead',bounds=bnds,options={"maxiter":1e5,"disp":True})
 
 #plotting the predictions now
 

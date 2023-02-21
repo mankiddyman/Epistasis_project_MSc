@@ -27,11 +27,50 @@ def model_leaky(I_conc,A_s,B_s,C_s,N_s,L_r,A_r,C_r,N_r,L_o,A_o,C_o,N_o):
     Stripe = L_o+(A_o)/(1+np.power(C_o*Sens_Reg,N_o))
     return Sensor, Regulator, Output, Stripe
 
-def model_4_pred(I_conc,As,Bs,Cs,Ns,Ar,Br,Cr,Nr,Ah,Bh,Ch,Fo,Ao,Bo,Co,No):
+#example input to model_hill
+
+#params_dict={"sen_params":{"As":1,"Bs":1,"Cs":1,"Ns":1},"reg_params":{"Ar":1,"Br":1,"Cr":1,"Nr":1},"out_h_params":{"Ah":1,"Bh":1,"Ch":1},"out_params":{"Fo":1,"Ao":1,"Bo":1,"Co":1,"No":1}}
+def model_hill(params_list:list,I_conc):
     #S is subscript for parameters corresponding to Sensor
     #R is subscript for parameters corresponding to Regulator
     #H is subscript for parameters corresponding to the half network I->S -| O
     #O is subscript for parameters corresponding to Output
+    # As=params_dict['sen_params']['As']
+    # Bs=params_dict['sen_params']['Bs']
+    # Cs=params_dict['sen_params']['Cs']
+    # Ns=params_dict['sen_params']['Ns']
+    # Ar=params_dict['reg_params']['Ar']
+    # Br=params_dict['reg_params']['Br']
+    # Cr=params_dict['reg_params']['Cr']
+    # Nr=params_dict['reg_params']['Nr']
+    # Ah=params_dict['out_h_params']['Ah']
+    # Bh=params_dict['out_h_params']['Bh']
+    # Ch=params_dict['out_h_params']['Ch']
+    # Fo=params_dict['out_params']['Fo']
+    # Ao=params_dict['out_params']['Ao']
+    # Bo=params_dict['out_params']['Bo']
+    # Co=params_dict['out_params']['Co']
+    # No=params_dict['out_params']['No']
+   
+
+    As=params_list[0]
+    Bs=params_list[1]
+    Cs=params_list[2]
+    Ns=params_list[3]
+    Ar=params_list[4]
+    Br=params_list[5]
+    Cr=params_list[6]
+    Nr=params_list[7]
+    Ah=params_list[8]
+    Bh=params_list[9]
+    Ch=params_list[10]
+    Fo=params_list[11]
+    Ao=params_list[12]
+    Bo=params_list[13]
+    Co=params_list[14]
+    No=params_list[15]
+    
+
 
     Sensor = As+Bs*np.power(Cs*I_conc,Ns)
     Sensor /= 1+np.power(Cs*I_conc,Ns)
@@ -50,13 +89,27 @@ def model_4_pred(I_conc,As,Bs,Cs,Ns,Ar,Br,Cr,Nr,Ah,Bh,Ch,Fo,Ao,Bo,Co,No):
 
 
 # thermodynamics model
-def thermodynamic_model(I, a_s,a_r,a_o,Ki_s,Kp_s,Kp_r,Ks_r,Kp_o,K_lacI_o,P,C_pi_s, C_ps_r,C_po_lacI_o):
+def thermodynamic_model(params_list:list,I_conc):
 
     # a_s, a_r, a_o represent the production rates divided by the degradation rates
     # I represents arabinose
     # P represents concentration of polymerase
     # Ki, Kii, Kps, Kpr, Ks, Kpo, K_lacI represent the binding affinity of the interaction
     # C_pi, C_ps, C_po_lacI represent the level of cooperative binding between activator or repressor with polymerase
+    a_s=params_list[0]
+    a_r=params_list[1]
+    a_o=params_list[2]
+    Ki_s=params_list[3]
+    Kp_s=params_list[4]
+    Kp_r=params_list[5]
+    Ks_r=params_list[6]
+    Kp_o=params_list[7]
+    K_lacI_o=params_list[8]
+    P=params_list[9]
+    C_pi_s=params_list[10]
+    C_ps_r=params_list[11]
+    C_po_lacI_o=params_list[12]
+    I=I_conc
 
     Sensor = a_s*(Kp_s*P+2*Ki_s*I*Kp_s*P+C_pi_s*Kp_s*Ki_s*P*np.power(I,2))
     Sensor /= (1+2*Ki_s*I+Kp_s*P+2*Ki_s*I*Kp_s*P+np.power(Ki_s*I,2)+C_pi_s*Kp_s*Ki_s*P*np.power(I,2))
@@ -72,4 +125,39 @@ def thermodynamic_model(I, a_s,a_r,a_o,Ki_s,Kp_s,Kp_r,Ks_r,Kp_o,K_lacI_o,P,C_pi_
 
     return Sensor, Regulator, Output_half, Output
 
-    
+
+#function to minimize while fitting, expects a dictionary of parameters corresponding to the model of interest, 
+def min_fun(params_list:list,data,model_type):
+        log_sen = np.log10(data.Sensor)
+        log_reg = np.log10(data.Regulator)
+        log_out = np.log10(data.Output)
+        log_stripe = np.log10(data.Stripe)   
+        ind = data.S
+        Sensor_est, Regulator_est, Output_est, Stripe_est = model_type(params_list,I_conc=ind)
+        log_sen_est = np.log10(Sensor_est)
+        log_reg_est = np.log10(Regulator_est)
+        log_out_est = np.log10(Output_est)
+        log_stripe_est = np.log10(Stripe_est)
+
+        #need to know what variables exist for each given mutant
+        if "Mutant_ID" in data:
+            mutant_id=data.Mutant_ID[0]
+            if mutant_id.startswith("Sensor"):
+                #need to ignore reg and output in fitting
+                log_reg,log_reg_est,log_out,log_out_est=0,0,0,0
+            # #if mutant_id.startswith("Regulator"):
+            #     #need to ignore reg and output in fitting
+            #     log_sen,log_sen_est,log_out,log_out_est=0,0,0,0
+            # #if mutant_id.startswith("Output"):
+            #     #need to ignore reg and sensor in fitting
+            #     log_reg,log_reg_est,log_sen,log_sen_est=0,0,0,0
+                
+        
+
+           
+
+        result = np.power((log_sen - log_sen_est), 2)
+        result += np.power((log_reg - log_reg_est), 2)
+        result += np.power((log_out - log_out_est), 2)
+        result += np.power((log_stripe - log_stripe_est), 2)
+        return np.sum(result)
