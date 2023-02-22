@@ -1,7 +1,6 @@
-import pandas as pd
-import matplotlib.pyplot as plt
 import numpy as np
-from scipy.optimize import curve_fit
+from scipy.integrate import odeint
+import pandas as pd
 
 # plots make sense
 #should investigate the relationships between inducer and sensor (calculated using regression of inducer )
@@ -28,7 +27,7 @@ def model_leaky(I_conc,A_s,B_s,C_s,N_s,L_r,A_r,C_r,N_r,L_o,A_o,C_o,N_o):
     return Sensor, Regulator, Output, Stripe
 
 #example input to model_hill
-
+#assumes degredation of lacI, TetR and GFP are constant
 #params_dict={"sen_params":{"As":1,"Bs":1,"Cs":1,"Ns":1},"reg_params":{"Ar":1,"Br":1,"Cr":1,"Nr":1},"out_h_params":{"Ah":1,"Bh":1,"Ch":1},"out_params":{"Fo":1,"Ao":1,"Bo":1,"Co":1,"No":1}}
 def model_hill(params_list:list,I_conc):
     #S is subscript for parameters corresponding to Sensor
@@ -151,13 +150,99 @@ def min_fun(params_list:list,data,model_type):
             # #if mutant_id.startswith("Output"):
             #     #need to ignore reg and sensor in fitting
             #     log_reg,log_reg_est,log_sen,log_sen_est=0,0,0,0
-                
         
-
-           
-
         result = np.power((log_sen - log_sen_est), 2)
         result += np.power((log_reg - log_reg_est), 2)
         result += np.power((log_out - log_out_est), 2)
         result += np.power((log_stripe - log_stripe_est), 2)
         return np.sum(result)
+
+#model_hill_shakey: 
+#uses hill functions as in model_hill, but does not assume that a steady state has been reached in the system
+#example input to model_hill_shakey:
+params_dict={"sen_params":{"As":1,"Bs":1,"Cs":1,"Ns":1, "deg_s": 1},"reg_params":{"Ar":1,"Br":1,"Cr":1,"Nr":1, "deg_r": 1},"out_h_params":{"Ah":1,"Bh":1,"Ch":1},"out_params":{"Fo":1,"Ao":1,"Bo":1,"Co":1,"No":1, "deg_o":1}}
+def param_dictToList(params_dict = params_dict):
+    params_list = []
+    for set in list(params_dict.values()):
+        params_list += list(set.values())
+    return params_list
+
+params_list = param_dictToList()
+#%% redefine model_hill_shaky
+def model_hill_shaky(params_list:list,I_conc):
+    #S is subscript for parameters corresponding to Sensor
+    #R is subscript for parameters corresponding to Regulator
+    #H is subscript for parameters corresponding to the half network I->S -| O
+    #O is subscript for parameters corresponding to Output
+    
+    #creates variables described in params_dict 
+    As=params_list[0]
+    Bs=params_list[1]
+    Cs=params_list[2]
+    Ns=params_list[3]
+    Ar=params_list[4]
+    Br=params_list[5]
+    Cr=params_list[6]
+    Nr=params_list[7]
+    Ah=params_list[8]
+    Bh=params_list[9]
+    Ch=params_list[10]
+    Fo=params_list[11]
+    Ao=params_list[12]
+    Bo=params_list[13]
+    Co=params_list[14]
+    No=params_list[15]
+    
+    Sensor = np.array([])
+    Regulator = np.array([])
+    Output_half = np.array([])
+    Output = np.array([])
+    #initial conditions assumed as steady state with no inducer present
+    S0 = Ar
+    R0 = Br/(1+np.power(Cr*S0,Nr))+ Ar
+    H0 = Bh/(1+np.power(Ch*S0,No))+Ah
+    O0 = Ao*Ah + Bo*Bh/(1+np.power(Ch*(S0+Co*R0),No))*Fo
+    SRHO0 = np.array([S0,R0,H0,O0])
+    #arbitrary time point to integrate ODE up to
+    t = np.array([1])
+    #define system of ODEs to be solved by odeint, for a each inducer concentration
+    for conc in I_conc:
+        def ODEs(SRHO):
+            #for set in params_dict.values():
+            #    locals().update(set) 
+            S = SRHO[0]
+            R = SRHO[1]
+            H = SRHO[2]
+            O = SRHO[3]
+
+            #S for sensor concentration at time t, prod for production
+            S_prod = As+Bs*np.power(Cs*conc,Ns)
+            S_prod /= 1+np.power(Cs*conc,Ns)
+
+            #change in S concentration w.r.t. time, deg for degredation rate
+            dSdt = S_prod - S
+
+            R_prod = Br/(1+np.power(Cr*S,Nr))
+            R_prod += Ar
+
+            dRdt = R_prod - R
+
+            O_half_prod = Bh/(1+np.power(Ch*S,No))
+            O_half_prod += Ah
+
+            dHdt = O_half_prod - H
+
+            O_prod = Ao*Ah + Bo*Bh/(1+np.power(Ch*(S+Co*R),No))
+            O_prod*=Fo #should Fo scale degredation as well?
+
+            dOdt = O_prod - O
+            return np.array([dSdt, dRdt, dHdt, dOdt])
+
+        SRHO = odeint(ODEs, SRHO0, t)
+        Sensor = np.append(Sensor, SRHO[0,0])
+        Regulator = np.append(Regulator, SRHO[0,1])
+        Output_half = np.append(Output_half, SRHO[0,2])
+        Output = np.append(Output, SRHO[0,3])
+    return pd.Series(Sensor),pd.Series(Regulator) ,pd.Series(Output_half), pd.Series(Output)
+#%%
+#I wonder why we describe different repression strengths for repression by LacI_regulator and LacI_sensor?

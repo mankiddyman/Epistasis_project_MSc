@@ -135,7 +135,7 @@ def Epistasis(mutants:list, model = 'logadd'):
         # performing Mann-Whitney U test
         p_val_object = stats.mannwhitneyu
         p_val_item = getattr(p_val_object, 'pvalue')
-        (Ghat_logadd_mean, G_obs_mean, alternative='two-sided')p_val_list = [p_val_item,p_val_item,p_val_item]
+        hat_logadd_mean, G_obs_mean, alternative='two-sided')p_val_list = [p_val_item,p_val_item,p_val_item]
         p_val = np.array(p_val_list)
     else:
         Ghat = G_hat(model, mutants)
