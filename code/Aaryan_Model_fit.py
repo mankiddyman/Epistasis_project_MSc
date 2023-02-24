@@ -6,9 +6,12 @@ from scipy.optimize import minimize
 from Models import *
 from data_wrangling import *
 from itertools import chain
+from itertools import repeat
 from PyPDF2 import PdfMerger
 import inspect
+import re 
 
+df = pd.read_csv('../data/WT_single.csv')
  #change dictionary to list of coeffs
 def coef_dict_to_list(coef_dict):
     return list(coef_dict.values())
@@ -35,12 +38,12 @@ def get_data_SM(mutation:str):
 
     #now gonna do the scipy.optimize.minimize
 def WT_fit_plot(ax, y,params,label:str):
-        return ax.plot(Signal, y, **params,label=f"{label}")
+        return ax.plot(I_conc, y, **params,label=f"{label}")
 
 
     #define scatter plotting function with log scales
 def WT_Plotter(ax,y, params):
-    out = ax.scatter(Signal, data_[y], **params, marker = 'o')
+    out = ax.scatter(I_conc, data_[y], **params, marker = 'o')
     xScale = ax.set_xscale('log')
     yScale = ax.set_yscale('log')
 
@@ -65,9 +68,11 @@ SM_names=[x[:-4] for x in dat_files]
 
 #WT_params = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]   
 
+
 model_type_in=model_hill
 params_dict={"sen_params":{"As":618.047086,"Bs":16278.856600,"Cs":1300.653790,"Ns":1.096541},"reg_params":{"Ar":1916.175610,"Br":18874.240800,"Cr":0.009030,"Nr":0.820433},"out_h_params":{"Ah":683.835638,"Bh":32464.380200,"Ch":0.000473},"out_params":{"Fo":2.821352,"Ao":0.632148,"Bo":0.972768 ,"Co":2.640174,"No":1.919339}}
 SM_mutant_of_interest="Regulator1"
+n_iter = float=1e5
 #%%
 def model_fitting_SM(model_type=model_type_in,n_iter:float=1e5,mutant_range:slice=slice(0,len(SM_names))):
         #n_iter is how many iterations u want to evaluate
@@ -133,7 +138,7 @@ def model_fitting_SM(model_type=model_type_in,n_iter:float=1e5,mutant_range:slic
         # dfa = dfa.set_index(pd.Series([SM_mutant_of_interest]))
         # df_param_compare = pd.concat([df_param_compare, dfa])
 
-        Signal=data_.S
+        I_conc=data_.S
         fig, ((Sensor, Regulator), (Output, Stripe)) = plt.subplots(2,2, constrained_layout=True)
         
         WT_Plotter(Sensor, "Sensor", {'color':'red'})
@@ -206,16 +211,40 @@ def model_fitting_SM(model_type=model_type_in,n_iter:float=1e5,mutant_range:slic
     merger.close()
     print("done with all")
     return 1
+
+#model_hill test
+###################################################
+params_dict={"sen_params":{"A_s":618.047086,"B_s":16278.856600,"C_s":1300.653790,"N_s":1.096541},"reg_params":{"Ar":1916.175610,"B_r":18874.240800,"C_r":0.009030,"N_r":0.820433},"out_h_params":{"A_h":683.835638,"B_h":32464.380200,"C_h":0.000473},"out_params":{"F_":2.821352,"A_o":0.632148,"B_o":0.972768 ,"C_o":2.640174,"No":1.919339}}
+
+WT_params=param_dictToList(params_dict)
+#WT_params=list(np.array(WT_params)+100)
+#WT_params=[1]*13
+#WT_params=list(np.array(WT_params)+100)
+bnds = tuple(repeat((0,None), len(WT_params)))
+model_type = model_hill_shaky
+n_iter = float=1e5
+
+get_WT_params()
 #thermodynamic
-params_dict={"sen_params":{"a_s":1,"Kp_s":1,"P":1,"Ki_s":1,"C_pi_s":1},"reg_params":{"Ar":1,"Br":1,"Cr":1,"Nr":1},"out_h_params":{"Ah":1,"Bh":1,"Ch":1},"out_params":{"Fo":1,"Ao":1,"Bo":1,"Co":1,"No":1}}
+params_dict={"sen_params":{"a_s":1,"Kp_s":1,"P":1,"Ki_s":1,"C_pi_s":1},"reg_params":{"a _r":1,"Kp_r":1,"Ks_r":1},"out_params":{"a_o":1,"Kp_o":1,"K_lacI_o":1,"C_po_lacI_o":1}}
 
+#model_hill_shaky testing
+################################
+params_dict={"sen_params":{"As":1,"Bs":1,"Cs":1,"Ns":1},"reg_params":{"Ar":1,"Br":1,"Cr":1,"Nr":1},"out_h_params":{"Ah":1,"Bh":1,"Ch":1},"out_params":{"Fo":1,"Ao":1,"Bo":1,"Co":1,"No":1}}
 
-WT_params=dict_to_list(params_dict)
-WT_params=list(np.array(WT_params)+100)
-WT_params=[1]*13
-WT_params=list(np.array(WT_params)+100)
-bnds = ((0, None), (0, None), (0, None), (0, None), (0, None), (0, None), (0, None),(0, None), (0, None), (0, None),(1, None), (0,1), (0,1))
-def get_WT_params(model_type=model_type_in,n_iter:float=1e5):
+WT_params=param_dictToList(params_dict)
+#WT_params=list(np.array(WT_params)+100)
+#WT_params=[1]*13
+#WT_params=list(np.array(WT_params)+100)
+bnds = tuple(repeat((0,None), len(WT_params)))
+model_type = model_hill_shaky
+n_iter = float=1e5
+
+get_WT_params()
+##################################
+
+def get_WT_params(model_type=model_type,n_iter:float=1e5):
+    #%%
     #this function will estimate the wild type parameters for a given model.
     #now loading wt dataframe
     data_=meta_dict['WT']
@@ -294,7 +323,7 @@ def get_WT_params(model_type=model_type_in,n_iter:float=1e5):
 params_dict={"sen_params":{"a_s":1,"Kp_s":1,"P":1,"Ki_s":1,"C_pi_s":1},"reg_params":{"a_r":1,"Kp_r":1,"Cr":1,"Nr":1},"out_h_params":{"Ah":1,"Bh":1,"Ch":1}}
 
 
-params_dict={"sen_params":{"As":1,"Bs":1,"Cs":1,"Ns":1},"reg_params":{"Ar":1,"Br":1,"Cr":1,"Nr":1},"out_h_params":{"Ah":1,"Bh":1,"Ch":1},"out_params":{"Fo":1,"Ao":1,"Bo":1,"Co":1,"No":1}}
+#params_dict={"sen_params":{"As":1,"Bs":1,"Cs":1,"Ns":1},"reg_params":{"Ar":1,"Br":1,"Cr":1,"Nr":1},"out_h_params":{"Ah":1,"Bh":1,"Ch":1},"out_params":{"Fo":1,"Ao":1,"Bo":1,"Co":1,"No":1}}
 
 params_dict["sen_params"]
 
@@ -302,8 +331,7 @@ params_dict["sen_params"]
 #now generating initial guesses
 
 model_type_in=thermodynamic_model
-
-
+#%%
 
 #functionality to add ,
 #  automatically find out number of arguements, automatically set bounds on paramaeters

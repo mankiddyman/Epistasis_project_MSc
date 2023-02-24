@@ -52,36 +52,36 @@ def model_hill(params_list:list,I_conc):
     # No=params_dict['out_params']['No']
    
 
-    As=params_list[0]
-    Bs=params_list[1]
-    Cs=params_list[2]
-    Ns=params_list[3]
-    Ar=params_list[4]
-    Br=params_list[5]
-    Cr=params_list[6]
-    Nr=params_list[7]
-    Ah=params_list[8]
-    Bh=params_list[9]
-    Ch=params_list[10]
-    Fo=params_list[11]
-    Ao=params_list[12]
-    Bo=params_list[13]
-    Co=params_list[14]
-    No=params_list[15]
+    A_s=params_list[0]
+    B_s=params_list[1]
+    C_s=params_list[2]
+    N_s=params_list[3]
+    A_r=params_list[4]
+    B_r=params_list[5]
+    C_r=params_list[6]
+    N_r=params_list[7]
+    A_h=params_list[8]
+    B_h=params_list[9]
+    C_h=params_list[10]
+    F_o=params_list[11]
+    A_o=params_list[12]
+    B_o=params_list[13]
+    C_o=params_list[14]
+    N_o=params_list[15]
     
 
 
-    Sensor = As+Bs*np.power(Cs*I_conc,Ns)
-    Sensor /= 1+np.power(Cs*I_conc,Ns)
+    Sensor = A_s+B_s*np.power(C_s*I_conc,N_s)
+    Sensor /= 1+np.power(C_s*I_conc,N_s)
 
-    Regulator = Br/(1+np.power(Cr*Sensor,Nr))
-    Regulator += Ar
+    Regulator = B_r/(1+np.power(C_r*Sensor,N_r))
+    Regulator += A_r
 
-    Output_half = Bh/(1+np.power(Ch*Sensor,No))
-    Output_half += Ah
+    Output_half = B_h/(1+np.power(C_h*Sensor,N_o))
+    Output_half += A_h
 
-    Output = Ao*Ah + Bo*Bh/(1+np.power(Ch*(Sensor+Co*Regulator),No))
-    Output*=Fo
+    Output = A_o*A_h + B_o*B_h/(1+np.power(C_h*(Sensor+C_o*Regulator),N_o))
+    Output*=F_o
     #I wonder why we describe different repression strengths for repression by LacI_regulator and LacI_sensor?
     return Sensor,Regulator,Output_half, Output
 
@@ -176,32 +176,32 @@ def model_hill_shaky(params_list:list,I_conc):
     #O is subscript for parameters corresponding to Output
     
     #creates variables described in params_dict 
-    As=params_list[0]
-    Bs=params_list[1]
-    Cs=params_list[2]
-    Ns=params_list[3]
-    Ar=params_list[4]
-    Br=params_list[5]
-    Cr=params_list[6]
-    Nr=params_list[7]
-    Ah=params_list[8]
-    Bh=params_list[9]
-    Ch=params_list[10]
-    Fo=params_list[11]
-    Ao=params_list[12]
-    Bo=params_list[13]
-    Co=params_list[14]
-    No=params_list[15]
+    A_s=params_list[0]
+    B_s=params_list[1]
+    C_s=params_list[2]
+    N_s=params_list[3]
+    A_r=params_list[4]
+    B_r=params_list[5]
+    C_r=params_list[6]
+    N_r=params_list[7]
+    A_h=params_list[8]
+    B_h=params_list[9]
+    C_h=params_list[10]
+    F_o=params_list[11]
+    A_o=params_list[12]
+    B_o=params_list[13]
+    C_o=params_list[14]
+    N_o=params_list[15]
     
     Sensor = np.array([])
     Regulator = np.array([])
     Output_half = np.array([])
     Output = np.array([])
     #initial conditions assumed as steady state with no inducer present
-    S0 = Ar
-    R0 = Br/(1+np.power(Cr*S0,Nr))+ Ar
-    H0 = Bh/(1+np.power(Ch*S0,No))+Ah
-    O0 = Ao*Ah + Bo*Bh/(1+np.power(Ch*(S0+Co*R0),No))*Fo
+    S0 = A_r
+    R0 = B_r/(1+np.power(C_r*S0,N_r))+ A_r
+    H0 = B_h/(1+np.power(C_h*S0,N_o))+A_h
+    O0 = A_o*A_h + B_o*B_h/(1+np.power(C_h*(S0+C_o*R0),N_o))*F_o
     SRHO0 = np.array([S0,R0,H0,O0])
     #arbitrary time point to integrate ODE up to
     t = np.array([1])
@@ -214,26 +214,24 @@ def model_hill_shaky(params_list:list,I_conc):
             R = SRHO[1]
             H = SRHO[2]
             O = SRHO[3]
-
             #S for sensor concentration at time t, prod for production
-            S_prod = As+Bs*np.power(Cs*conc,Ns)
-            S_prod /= 1+np.power(Cs*conc,Ns)
-
+            S_prod = A_s+B_s*np.power(C_s*conc,N_s)
+            S_prod /= 1+np.power(C_s*conc,N_s)
             #change in S concentration w.r.t. time, deg for degredation rate
             dSdt = S_prod - S
 
-            R_prod = Br/(1+np.power(Cr*S,Nr))
-            R_prod += Ar
+            R_prod = B_r/(1+np.power(C_r*S,N_r))
+            R_prod += A_r
 
             dRdt = R_prod - R
 
-            O_half_prod = Bh/(1+np.power(Ch*S,No))
-            O_half_prod += Ah
+            O_half_prod = B_h/(1+np.power(C_h*S,N_o))
+            O_half_prod += A_h
 
             dHdt = O_half_prod - H
 
-            O_prod = Ao*Ah + Bo*Bh/(1+np.power(Ch*(S+Co*R),No))
-            O_prod*=Fo #should Fo scale degredation as well?
+            O_prod = A_o*A_h + B_o*B_h/(1+np.power(C_h*(S+C_o*R),N_o))
+            O_prod*=F_o #should Fo scale degredation as well?
 
             dOdt = O_prod - O
             return np.array([dSdt, dRdt, dHdt, dOdt])
