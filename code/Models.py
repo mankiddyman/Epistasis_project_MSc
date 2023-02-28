@@ -29,101 +29,218 @@ def model_leaky(I_conc,A_s,B_s,C_s,N_s,L_r,A_r,C_r,N_r,L_o,A_o,C_o,N_o):
 #example input to model_hill
 #assumes degredation of lacI, TetR and GFP are constant
 #params_dict={"sen_params":{"As":1,"Bs":1,"Cs":1,"Ns":1},"reg_params":{"Ar":1,"Br":1,"Cr":1,"Nr":1},"out_h_params":{"Ah":1,"Bh":1,"Ch":1},"out_params":{"Fo":1,"Ao":1,"Bo":1,"Co":1,"No":1}}
-def model_hill(params_list:list,I_conc):
-    #S is subscript for parameters corresponding to Sensor
-    #R is subscript for parameters corresponding to Regulator
-    #H is subscript for parameters corresponding to the half network I->S -| O
-    #O is subscript for parameters corresponding to Output
-    # As=params_dict['sen_params']['As']
-    # Bs=params_dict['sen_params']['Bs']
-    # Cs=params_dict['sen_params']['Cs']
-    # Ns=params_dict['sen_params']['Ns']
-    # Ar=params_dict['reg_params']['Ar']
-    # Br=params_dict['reg_params']['Br']
-    # Cr=params_dict['reg_params']['Cr']
-    # Nr=params_dict['reg_params']['Nr']
-    # Ah=params_dict['out_h_params']['Ah']
-    # Bh=params_dict['out_h_params']['Bh']
-    # Ch=params_dict['out_h_params']['Ch']
-    # Fo=params_dict['out_params']['Fo']
-    # Ao=params_dict['out_params']['Ao']
-    # Bo=params_dict['out_params']['Bo']
-    # Co=params_dict['out_params']['Co']
-    # No=params_dict['out_params']['No']
-   
+#%%
+class model_hill:
+    def __init__(self,params_list:list,I_conc):
+        self.params_list=params_list
+        self.I_conc=I_conc
+        self.example_dict={"sen_params":{"A_s":1,"B_s":1,"C_s":1,"N_s":1},"reg_params":{"A_r":1,"B_r":1,"C_r":1,"N_r":1},"out_h_params":{"A_h":1,"B_h":1,"C_h":1},"out_params":{"A_o":1,"B_o":1,"C_o":1,"N_o":1},"free_params":{"F_o":1}}
+        self.n_parameters=16
+    @staticmethod    
+    def model(params_list,I_conc):
+        correct_length=16
+        #S is subscript for parameters corresponding to Sensor
+        #R is subscript for parameters corresponding to Regulator
+        #H is subscript for parameters corresponding to the half network I->S -| O
+        #O is subscript for parameters corresponding to Output
+        # As=params_dict['sen_params']['As']
+        # Bs=params_dict['sen_params']['Bs']
+        # Cs=params_dict['sen_params']['Cs']
+        # Ns=params_dict['sen_params']['Ns']
+        # Ar=params_dict['reg_params']['Ar']
+        # Br=params_dict['reg_params']['Br']
+        # Cr=params_dict['reg_params']['Cr']
+        # Nr=params_dict['reg_params']['Nr']
+        # Ah=params_dict['out_h_params']['Ah']
+        # Bh=params_dict['out_h_params']['Bh']
+        # Ch=params_dict['out_h_params']['Ch']
+        # Fo=params_dict['out_params']['Fo']
+        # Ao=params_dict['out_params']['Ao']
+        # Bo=params_dict['out_params']['Bo']
+        # Co=params_dict['out_params']['Co']
+        # No=params_dict['out_params']['No']
+        
+        
 
-    As=params_list[0]
-    Bs=params_list[1]
-    Cs=params_list[2]
-    Ns=params_list[3]
-    Ar=params_list[4]
-    Br=params_list[5]
-    Cr=params_list[6]
-    Nr=params_list[7]
-    Ah=params_list[8]
-    Bh=params_list[9]
-    Ch=params_list[10]
-    Fo=params_list[11]
-    Ao=params_list[12]
-    Bo=params_list[13]
-    Co=params_list[14]
-    No=params_list[15]
+        if len(params_list)!=correct_length:
+            print("params_list of incorrect length should be of length ",correct_length)
+            return 0
+        #sensor
+        A_s=params_list[0]
+        B_s=params_list[1]
+        C_s=params_list[2]
+        N_s=params_list[3]
+        #regulator
+        A_r=params_list[4]
+        B_r=params_list[5]
+        C_r=params_list[6]
+        N_r=params_list[7]
+        #out_half
+        A_h=params_list[8]
+        B_h=params_list[9]
+        C_h=params_list[10]
+        #output
+        A_o=params_list[11]
+        B_o=params_list[12]
+        C_o=params_list[13]
+        N_o=params_list[14]
+        #free
+        F_o=params_list[15]
+        
+        Sensor = A_s+B_s*np.power(C_s*I_conc,N_s)
+        Sensor /= 1+np.power(C_s*I_conc,N_s)
+
+        Regulator = B_r/(1+np.power(C_r*Sensor,N_r))
+        Regulator += A_r
+
+        Output_half = B_h/(1+np.power(C_h*Sensor,N_o))
+        Output_half += A_h
+
+        Output = A_o*A_h + B_o*B_h/(1+np.power(C_h*(Sensor+C_o*Regulator),N_o))
+        Output*=F_o
+        #I wonder why we describe different repression strengths for repression by LacI_regulator and LacI_sensor?
+        return Sensor,Regulator,Output_half, Output
+
     
 
+#%%
+    
 
-    Sensor = As+Bs*np.power(Cs*I_conc,Ns)
-    Sensor /= 1+np.power(Cs*I_conc,Ns)
+class model_thermodynamic:
+    def __init__(self,params_list:list,I_conc):
+        self.params_list=params_list
+        self.I_conc=I_conc
+        self.example_dict={"sen_params":{"a_s":1,"Kp_s":1,"P":1,"Ki_s":1,"C_pi_s":1},"reg_params":{"a_r":1,"Kp_r":1,"Cr":1,"Nr":1},"out_h_params":{"Ah":1,"Bh":1,"Ch":1}}
+    
+    # thermodynamics model
+    @staticmethod
+    def model(params_list,I_conc):
+        correct_length=13
+        if len(params_list)!=correct_length:
+            print("params_list of incorrect length should be of length ",correct_length)
+            return 0
+        # a_s, a_r, a_o represent the production rates divided by the degradation rates
+        # I represents arabinose
+        # P represents concentration of polymerase
+        # Ki, Kii, Kps, Kpr, Ks, Kpo, K_lacI represent the binding affinity of the interaction
+        # C_pi, C_ps, C_po_lacI represent the level of cooperative binding between activator or repressor with polymerase
+        a_s=params_list[0]
+        a_r=params_list[1]
+        a_o=params_list[2]
+        Ki_s=params_list[3]
+        Kp_s=params_list[4]
+        Kp_r=params_list[5]
+        Ks_r=params_list[6]
+        Kp_o=params_list[7]
+        K_lacI_o=params_list[8]
+        P=params_list[9]
+        C_pi_s=params_list[10]
+        C_ps_r=params_list[11]
+        C_po_lacI_o=params_list[12]
+        I=I_conc
 
-    Regulator = Br/(1+np.power(Cr*Sensor,Nr))
-    Regulator += Ar
+        Sensor = a_s*(Kp_s*P+2*Ki_s*I*Kp_s*P+C_pi_s*Kp_s*Ki_s*P*np.power(I,2))
+        Sensor /= (1+2*Ki_s*I+Kp_s*P+2*Ki_s*I*Kp_s*P+np.power(Ki_s*I,2)+C_pi_s*Kp_s*Ki_s*P*np.power(I,2))
 
-    Output_half = Bh/(1+np.power(Ch*Sensor,No))
-    Output_half += Ah
+        Regulator = a_r*(Kp_r*P+Kp_r*P*Ks_r*Sensor*C_ps_r)
+        Regulator /= (1+Kp_r*P+Kp_r*P*Ks_r*Sensor*C_ps_r+Ks_r*Sensor)
 
-    Output = Ao*Ah + Bo*Bh/(1+np.power(Ch*(Sensor+Co*Regulator),No))
-    Output*=Fo
-    #I wonder why we describe different repression strengths for repression by LacI_regulator and LacI_sensor?
-    return Sensor,Regulator,Output_half, Output
+        Output_half = a_o*(Kp_o*P+K_lacI_o*Sensor*Kp_o*P*C_po_lacI_o)
+        Output_half /= (1+Kp_o*P+K_lacI_o*Sensor*Kp_o*P*C_po_lacI_o+K_lacI_o*Sensor)
 
+        Output = a_o*(Kp_o*P+K_lacI_o*(Sensor+Regulator)*Kp_o*P*C_po_lacI_o)
+        Output /= (1+Kp_o*P+K_lacI_o*(Sensor+Regulator)*Kp_o*P*C_po_lacI_o+K_lacI_o*(Sensor+Regulator))
 
+        return Sensor, Regulator, Output_half, Output
+#%%
 
-# thermodynamics model
-def thermodynamic_model(params_list:list,I_conc):
+class model_hill_shaky:
+    def __init__(self,params_list:list,I_conc):
+        self.params_list=params_list
+        self.I_conc=I_conc
+        self.example_dict={"sen_params":{"a_s":1,"Kp_s":1,"P":1,"Ki_s":1,"C_pi_s":1},"reg_params":{"a_r":1,"Kp_r":1,"Cr":1,"Nr":1},"out_h_params":{"Ah":1,"Bh":1,"Ch":1}}
+        self.correct_length=16
+    @staticmethod
+    def model(params_list:list,I_conc):
+        #S is subscript for parameters corresponding to Sensor
+        #R is subscript for parameters corresponding to Regulator
+        #H is subscript for parameters corresponding to the half network I->S -| O
+        #O is subscript for parameters corresponding to Output
+        
+        #creates variables described in params_dict 
 
-    # a_s, a_r, a_o represent the production rates divided by the degradation rates
-    # I represents arabinose
-    # P represents concentration of polymerase
-    # Ki, Kii, Kps, Kpr, Ks, Kpo, K_lacI represent the binding affinity of the interaction
-    # C_pi, C_ps, C_po_lacI represent the level of cooperative binding between activator or repressor with polymerase
-    a_s=params_list[0]
-    a_r=params_list[1]
-    a_o=params_list[2]
-    Ki_s=params_list[3]
-    Kp_s=params_list[4]
-    Kp_r=params_list[5]
-    Ks_r=params_list[6]
-    Kp_o=params_list[7]
-    K_lacI_o=params_list[8]
-    P=params_list[9]
-    C_pi_s=params_list[10]
-    C_ps_r=params_list[11]
-    C_po_lacI_o=params_list[12]
-    I=I_conc
+        #sensor
+        A_s=params_list[0]
+        B_s=params_list[1]
+        C_s=params_list[2]
+        N_s=params_list[3]
+        #regulator
+        A_r=params_list[4]
+        B_r=params_list[5]
+        C_r=params_list[6]
+        N_r=params_list[7]
+        #out_half
+        A_h=params_list[8]
+        B_h=params_list[9]
+        C_h=params_list[10]
+        #output
+        A_o=params_list[11]
+        B_o=params_list[12]
+        C_o=params_list[13]
+        N_o=params_list[14]
+        #free
+        F_o=params_list[15]
+        
+        Sensor = np.array([])
+        Regulator = np.array([])
+        Output_half = np.array([])
+        Output = np.array([])
+        #initial conditions assumed as steady state with no inducer present
+        S0 = A_r
+        R0 = B_r/(1+np.power(C_r*S0,N_r))+ A_r
+        H0 = B_h/(1+np.power(C_h*S0,N_o))+A_h
+        O0 = A_o*A_h + B_o*B_h/(1+np.power(C_h*(S0+C_o*R0),N_o))*F_o
+        SRHO0 = np.array([S0,R0,H0,O0])
+        #arbitrary time point to integrate ODE up to
+        t = np.array([1])
+        #define system of ODEs to be solved by odeint, for a each inducer concentration
+        for conc in I_conc:
+            def ODEs(SRHO):
+                #for set in params_dict.values():
+                #    locals().update(set) 
+                S = SRHO[0]
+                R = SRHO[1]
+                H = SRHO[2]
+                O = SRHO[3]
+                #S for sensor concentration at time t, prod for production
+                S_prod = A_s+B_s*np.power(C_s*conc,N_s)
+                S_prod /= 1+np.power(C_s*conc,N_s)
+                #change in S concentration w.r.t. time, deg for degredation rate
+                dSdt = S_prod - S
 
-    Sensor = a_s*(Kp_s*P+2*Ki_s*I*Kp_s*P+C_pi_s*Kp_s*Ki_s*P*np.power(I,2))
-    Sensor /= (1+2*Ki_s*I+Kp_s*P+2*Ki_s*I*Kp_s*P+np.power(Ki_s*I,2)+C_pi_s*Kp_s*Ki_s*P*np.power(I,2))
+                R_prod = B_r/(1+np.power(C_r*S,N_r))
+                R_prod += A_r
 
-    Regulator = a_r*(Kp_r*P+Kp_r*P*Ks_r*Sensor*C_ps_r)
-    Regulator /= (1+Kp_r*P+Kp_r*P*Ks_r*Sensor*C_ps_r+Ks_r*Sensor)
+                dRdt = R_prod - R
 
-    Output_half = a_o*(Kp_o*P+K_lacI_o*Sensor*Kp_o*P*C_po_lacI_o)
-    Output_half /= (1+Kp_o*P+K_lacI_o*Sensor*Kp_o*P*C_po_lacI_o+K_lacI_o*Sensor)
+                O_half_prod = B_h/(1+np.power(C_h*S,N_o))
+                O_half_prod += A_h
 
-    Output = a_o*(Kp_o*P+K_lacI_o*(Sensor+Regulator)*Kp_o*P*C_po_lacI_o)
-    Output /= (1+Kp_o*P+K_lacI_o*(Sensor+Regulator)*Kp_o*P*C_po_lacI_o+K_lacI_o*(Sensor+Regulator))
+                dHdt = O_half_prod - H
 
-    return Sensor, Regulator, Output_half, Output
+                O_prod = A_o*A_h + B_o*B_h/(1+np.power(C_h*(S+C_o*R),N_o))
+                O_prod*=F_o #should Fo scale degredation as well?
 
+                dOdt = O_prod - O
+                return np.array([dSdt, dRdt, dHdt, dOdt])
+
+            SRHO = odeint(ODEs, SRHO0, t)
+            Sensor = np.append(Sensor, SRHO[0,0])
+            Regulator = np.append(Regulator, SRHO[0,1])
+            Output_half = np.append(Output_half, SRHO[0,2])
+            Output = np.append(Output, SRHO[0,3])
+        return np.array(Sensor),np.array(Regulator) ,np.array(Output_half), np.array(Output)
+#%%
 
 #function to minimize while fitting, expects a dictionary of parameters corresponding to the model of interest, 
 def min_fun(params_list:list,data,model_type):
@@ -160,89 +277,7 @@ def min_fun(params_list:list,data,model_type):
 #model_hill_shakey: 
 #uses hill functions as in model_hill, but does not assume that a steady state has been reached in the system
 #example input to model_hill_shakey:
-params_dict={"sen_params":{"As":1,"Bs":1,"Cs":1,"Ns":1, "deg_s": 1},"reg_params":{"Ar":1,"Br":1,"Cr":1,"Nr":1, "deg_r": 1},"out_h_params":{"Ah":1,"Bh":1,"Ch":1},"out_params":{"Fo":1,"Ao":1,"Bo":1,"Co":1,"No":1, "deg_o":1}}
-def param_dictToList(params_dict = params_dict):
-    params_list = []
-    for set in list(params_dict.values()):
-        params_list += list(set.values())
-    return params_list
 
-params_list = param_dictToList()
 #%% redefine model_hill_shaky
-def model_hill_shaky(params_list:list,I_conc):
-    #S is subscript for parameters corresponding to Sensor
-    #R is subscript for parameters corresponding to Regulator
-    #H is subscript for parameters corresponding to the half network I->S -| O
-    #O is subscript for parameters corresponding to Output
-    
-    #creates variables described in params_dict 
-    As=params_list[0]
-    Bs=params_list[1]
-    Cs=params_list[2]
-    Ns=params_list[3]
-    Ar=params_list[4]
-    Br=params_list[5]
-    Cr=params_list[6]
-    Nr=params_list[7]
-    Ah=params_list[8]
-    Bh=params_list[9]
-    Ch=params_list[10]
-    Fo=params_list[11]
-    Ao=params_list[12]
-    Bo=params_list[13]
-    Co=params_list[14]
-    No=params_list[15]
-    
-    Sensor = np.array([])
-    Regulator = np.array([])
-    Output_half = np.array([])
-    Output = np.array([])
-    #initial conditions assumed as steady state with no inducer present
-    S0 = Ar
-    R0 = Br/(1+np.power(Cr*S0,Nr))+ Ar
-    H0 = Bh/(1+np.power(Ch*S0,No))+Ah
-    O0 = Ao*Ah + Bo*Bh/(1+np.power(Ch*(S0+Co*R0),No))*Fo
-    SRHO0 = np.array([S0,R0,H0,O0])
-    #arbitrary time point to integrate ODE up to
-    t = np.array([1])
-    #define system of ODEs to be solved by odeint, for a each inducer concentration
-    for conc in I_conc:
-        def ODEs(SRHO):
-            #for set in params_dict.values():
-            #    locals().update(set) 
-            S = SRHO[0]
-            R = SRHO[1]
-            H = SRHO[2]
-            O = SRHO[3]
 
-            #S for sensor concentration at time t, prod for production
-            S_prod = As+Bs*np.power(Cs*conc,Ns)
-            S_prod /= 1+np.power(Cs*conc,Ns)
-
-            #change in S concentration w.r.t. time, deg for degredation rate
-            dSdt = S_prod - S
-
-            R_prod = Br/(1+np.power(Cr*S,Nr))
-            R_prod += Ar
-
-            dRdt = R_prod - R
-
-            O_half_prod = Bh/(1+np.power(Ch*S,No))
-            O_half_prod += Ah
-
-            dHdt = O_half_prod - H
-
-            O_prod = Ao*Ah + Bo*Bh/(1+np.power(Ch*(S+Co*R),No))
-            O_prod*=Fo #should Fo scale degredation as well?
-
-            dOdt = O_prod - O
-            return np.array([dSdt, dRdt, dHdt, dOdt])
-
-        SRHO = odeint(ODEs, SRHO0, t)
-        Sensor = np.append(Sensor, SRHO[0,0])
-        Regulator = np.append(Regulator, SRHO[0,1])
-        Output_half = np.append(Output_half, SRHO[0,2])
-        Output = np.append(Output, SRHO[0,3])
-    return pd.Series(Sensor),pd.Series(Regulator) ,pd.Series(Output_half), pd.Series(Output)
-#%%
 #I wonder why we describe different repression strengths for repression by LacI_regulator and LacI_sensor?
