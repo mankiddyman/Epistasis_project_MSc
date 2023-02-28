@@ -279,5 +279,26 @@ def min_fun(params_list:list,data,model_type):
 #example input to model_hill_shakey:
 
 #%% redefine model_hill_shaky
-
 #I wonder why we describe different repression strengths for repression by LacI_regulator and LacI_sensor?
+#%%
+# Competition Model
+
+# F(S,R(S),O(S,R(S)))=0
+# F should be a function that takes one variable (S), and it's 0 when that's true 
+
+# f(I), in our case I, represents production of S
+# g(S) represents protduction of R
+# K, d - constants 
+
+def competition_model(params_list:list,I_conc):
+    
+    g=params_list[0]
+    K=params_list[1]
+    d=params_list[2]
+    S=params_list[3]
+    I=I_conc
+    
+    F = d*S*I-d*np.power(S,2)*K*g+d*np.power(S,2)*K*I-np.power(I,2)+I*K*g*S-2*K*np.power(I,2)*S+np.power(K,2)*I*g*np.power(S,2)-np.power(K,2)*np.power(I,2)*np.power(S,2)
+    F /= K*I*(d*np.power(K,2)*I-d*S-I+K*g*S-K*I*S)
+    
+    return F

@@ -1,26 +1,26 @@
 import pandas as pd
 import numpy as np
-from data_wrangling import meta_dict
-from Models import *
 import re
 from itertools import permutations
-import matplotlib.pyplot as plt
 from scipy import stats
+from data_wrangling import meta_dict
+from Models import *
 
-#Calculate epistasis for all double and triple mutants from observed and expected flourcsence at low, medium and high inducer concs
-
+#This file is defines the functions used to calculate epistasis for all double and triple mutants from observed and expected flourcsence at low, medium and high inducer concs. See Epistasis_calcs.py to run functions for a given model and export them to excel.
 df_S = meta_dict['SM']
 df_DM = meta_dict['DM']
 df_TM = meta_dict['TM']
 df_M = (pd.concat([df_DM, df_TM], ignore_index = True)).drop_duplicates()
 
-#get parameter values from here
-df_fits = pd.read_excel('../data/SM_params.xlsx').rename(columns={'Unnamed: 0': 'mutant'})
-
 I_conc = {'low':0.0, 'medium': 0.0002, 'high':0.2}
 I_conc_np = np.array(list(I_conc.values()))
 I_conc_np[1] = 0.000195 #medium Inducer concentration is rounded in df_S, want more accurate value (0.000195) when fitting using a model
-WT_params = df_fits.iloc[0].values.flatten().tolist()[1:-1]
+
+#get parameter values for model from here
+def get_params(model = 'observed'):
+    model_name = str(model).split(" ")[1]
+    df_fits = pd.read_excel('../data/'+model_name+'_SM_params.xlsx').rename(columns={'Unnamed: 0': 'mutant'})
+    return df_fits
 
 #stripe output at low, medium and high incucer concentration for WT
 g_WT = np.array(df_DM['obs_fluo_mean'][df_DM['genotype']=='WT'])
@@ -38,9 +38,10 @@ def g(mutant:str):
     return g_single , g_single_std, g_single_std_rel
 
 #expected flourecence for a set set of parameters and a chosen model at concentrations in I_conc dictionary relative to WT
-def g_hat(mutant:str, model):
+def g_hat(mutant:str, model, df_fits):
+
     params = df_fits[df_fits['mutant']== mutant].values.flatten().tolist()[1:-1]
-    g_hat = np.divide(model(I_conc_np, *params)[-1],g_WT)
+    g_hat = np.divide(model(params_list = params, I_conc = I_conc_np)[-1],g_WT)
     return g_hat
 
 #expected log fold flourecence for mutants assuming log additivity of single mutants
@@ -60,8 +61,9 @@ def G_log(mutants:list):
     return G_log, G_log_std, G_log_std_rel
 
 #expected GFP for double or triple mutants for a given model
-def G_hat(model, mutants:list):
+def G_hat(model, mutants:list, df_fits:pd.DataFrame):
     #copy df_fits and replace relevant parameters with mutated ones in df_fits row for first mutant in "mutants" list
+
     df_fits1 = df_fits.copy(deep = False)
     for mut in mutants[1:]:
         param_id = f"_{mut[0].lower()}"
@@ -72,7 +74,7 @@ def G_hat(model, mutants:list):
             new_params = pd.concat([new_params, df_fits1[df_fits1['mutant'] == mut].filter(like= '_h')], axis = 1)
         df_fits1.loc[df_fits1['mutant'] == mutants[0],columns_OI] = new_params.values
     #get parameter values for mutant combination
-    G_hat = np.log10(g_hat(mutants[0], model))
+    G_hat = np.log10(g_hat(mutants[0], model, df_fits1))
     return G_hat
 
 #get list of possible mutant id names - e.g ['Sensor1','Regulator1'] --> ['S1_R1' , 'R1_S1']
@@ -84,7 +86,7 @@ def get_mut_ids(mutants:list):
         muts.extend([mutant1_id])
     #permutations of mutants to search against in df_M
     mut_perms = []
-    for i,ids in enumerate(permutations(muts)):
+    for ids in permutations(muts):
         string = ''
         for j in range(len(ids)):
             string += ids[j] +'_'
@@ -122,38 +124,42 @@ def G_obs(mutants:list):
     G_obs = np.log10(np.divide(MT_mean, g_WT))
     return G_obs, MT_sd
 
-def Epistasis(mutants:list, model = 'observed'):
+def Epistasis(mutants:list,df_fits:pd.DataFrame, model = 'observed'):
     G_log_mean = G_log(mutants)[0]
-    Ghat_logadd_std = G_log(mutants)[1]   
+    #Ghat_logadd_std = G_log(mutants)[1]   
     if model == 'observed':
-        G = G_obs(mutants)[0]
+        G = G_obs(mutants)
+        G_mean = G[0]
         Epsilon =  G[0] - G_log_mean
         # Mann-Whitney U test removed because I deleted part of the syntax accidently and couldn't see how to quickly fix it
-        p_val = stats.ttest_ind_from_stats(mean1 = 1091,
-std1 = 252, nobs1 = 3,mean2 = 1730, std2 = 303,
-nobs2 = 3)[1]
+        p_val = stats.ttest_ind_from_stats(mean1 = 1091,std1 = 252, nobs1 = 3,mean2 = 1730, std2 = 303, nobs2 = 3)[1]
         p_vals = np.array([p_val, p_val, p_val])
     else:
-        G = G_hat(model, mutants)
-        Epsilon = G - G_log_mean
-        p_val = np.array([0,0,0])
-    return Epsilon, p_vals, G, G_log_mean
+        G_mean = G_hat(model, mutants, df_fits)
+        Epsilon = G_mean - G_log_mean
+        p_vals = np.array([0,0,0])
+    return Epsilon, p_vals, G_mean, G_log_mean
 
 
 #calculate epistasis for all double mutants - returns dataframe with Epistasis mean and PValue, and GFP output under a model or observed in lab, and G_logadd for each pairwise and triple mutant  
 def get_Eps(model='observed'):
     df_Eps = pd.DataFrame({'Ep': [],'Ep_pVal':[],'G': [], 'G_log': []})
+    cols = len(df_Eps.axes[1])
+    if model != 'observed':
+        df_fits = get_params(model)
+    else:
+        df_fits = get_params(model_hill)
     print("printing every 100th mutant processed to show progress...")
     for i, mut_id in enumerate(df_M['genotype'][(df_M['inducer level'] == 'low')][1:]):
         if i % 100 == 0:
             print(mut_id)
         mut_names = get_mut_names(mut_id)
-        mut_Eps = Epistasis(mut_names, model)
+        mut_Eps = Epistasis(mut_names,df_fits, model)
         row_low = []
         row_med = []
         row_high = []
         #make list from outputs of 'Epistasis' function to add as rows to Eps_low/med/high
-        for j in range(len(df_Eps.columns)):
+        for j in range(cols):
             row_low += [mut_Eps[j][0]]
             row_med += [mut_Eps[j][1]]
             row_high += [mut_Eps[j][2]]
@@ -161,84 +167,34 @@ def get_Eps(model='observed'):
         df_Eps.loc[1- 1/(i+1)] = row_low
         df_Eps.loc[2- 1/(i+1)] = row_med
         df_Eps.loc[len(df_Eps)] = row_high
-        #reorder indexes and then reset them  to integers
-        df_Eps = df_Eps.sort_index().reset_index(drop=True)
-        #now add genotype names and categories
-        df_Eps[['genotype' ,'genotype category', 'inducer level']] =  df_M[['genotype', 'genotype category', 'inducer level']][3:].reset_index(drop=True)
-        #and a boolean indicator for significant epistasis
-        df_Eps['Sig_Epistasis'] = np.where(df_Eps['Ep_pVal'] < 0.05, True, False)
+    #reorder indexes and then reset them  to integers
+    df_Eps = df_Eps.sort_index().reset_index(drop=True)
+    #now add genotype names and categories
+    df_Eps[['genotype' ,'genotype category', 'inducer level']] =  df_M[['genotype', 'genotype category', 'inducer level']][3:].reset_index(drop=True)
+    #and a boolean indicator for significant epistasis
+    df_Eps['Sig_Epistasis'] = np.where(df_Eps['Ep_pVal'] < 0.05, True, False)
     return df_Eps
-
-#export Epistases to an excel document named after the chosen model
-def Eps_toExcel(model):
-    df_Eps = get_Eps(model)
-    df_Eps.to_excel('../results/Eps_'+str(model)+'.xlsx')
-    return df_Eps
-
-#####################################################
-#run here to get excel spreadsheet of epistases for a given model a datframe called df_Eps
-df_Eps = Eps_toExcel()
-#####################################################
 
 #now to compare inducer dependent epistasis for a given model
-def IndCompare(dfEps=df_Eps, model:str = 'observed'):
-    df_Ep_concCompare = dfEps.loc[(dfEps['inducer level'] == 'low'), ['genotype category', 'Sig_Epistasis']].copy().reset_index(drop=True)
+def IndCompare(df_Eps, model = 'observed'):
+    df_Ep_concCompare = df_Eps.loc[(df_Eps['inducer level'] == 'low'), ['genotype category', 'Sig_Epistasis']].copy().reset_index(drop = True)
 
     #inspect inducer dependence epistases given a model
-    Eps_ml = np.subtract(dfEps['Ep'][dfEps['inducer level'] == 'medium'].to_numpy() , dfEps['Ep'][dfEps['inducer level'] == 'low'].to_numpy())
-    Eps_hm = np.subtract(dfEps['Ep'][dfEps['inducer level'] == 'high'].to_numpy() , dfEps['Ep'][dfEps['inducer level'] == 'medium'].to_numpy())
+    Eps_ml = np.subtract(df_Eps['Ep'][df_Eps['inducer level'] == 'medium'].to_numpy() , df_Eps['Ep'][df_Eps['inducer level'] == 'low'].to_numpy())
+    Eps_hm = np.subtract(df_Eps['Ep'][df_Eps['inducer level'] == 'high'].to_numpy() , df_Eps['Ep'][df_Eps['inducer level'] == 'medium'].to_numpy())
 
     df_Ep_concCompare['high-med'] =Eps_hm
     df_Ep_concCompare['med-low']= Eps_ml
 
-    #export to a spreadsheet
-    df_Ep_concCompare.to_excel('../results/'+model+ '.xlsx')
     return df_Ep_concCompare
 
-#####################################################
-df_Ep_concCompare = IndCompare()
-#####################################################
-
-# AK
-# Mann-Whitney U test does not assume normality
-# changes were made to Epistasis function 
-
-# check output type for p value for T-test for means of two independent samples
-mutants = ['Output1', 'Regulator1']
-G = G_obs(mutants)
-G_obs_mean = G[0]
-G_obs_std = G[1]
-Ghat_logadd = G_hat_logadd(mutants)
-Ghat_logadd_mean = Ghat_logadd[0]
-Ghat_logadd_std = Ghat_logadd[1]
-Epsilon =  G[0] - Ghat_logadd[0]
-ttest_p_val = stats.ttest_ind_from_stats(mean1 = Ghat_logadd_mean,
-std1 = Ghat_logadd_std, nobs1 = 3,mean2 = G_obs_mean, std2 = G_obs_std,
-nobs2 = 3)[1]
-ttest_p_val
-# check output p value for Mann-Whitney U test
-mann_p_val_object = stats.mannwhitneyu(Ghat_logadd_mean, G_obs_mean, alternative='two-sided')
-mann_p_val = getattr(mann_p_val_object, 'pvalue') 
-mann_p_val
-
-# histograms
-
-# histogram for p values
-# better distribution of p values
-df_M["pVal_epistasis"].hist()
-plt.title("Histogram of p values")
-
-# check if generated p values are equal to the p values from initial data
-copy = df_M
-copy1 = copy.dropna(subset=['pVal_epistasis'])
-output_pval =  list(copy1["pVal_epistasis"])
-n_pval = len(output_pval)
-check_data = pd.ExcelFile('../data/Source_Data.xlsx')
-check_df = pd.read_excel(check_data, 'Figure 2', header = 1, usecols="K")
-checkdf = check_df.dropna(subset=['p_value'])
-check_pval = list(checkdf['p_value'])
-n_check = len(check_pval)
-if output_pval == check_pval:
-    print("True")
-else:
-    print("False")
+#export Epistases to an excel document named after the chosen model
+def Eps_toExcel(model= 'observed'):
+    df_Eps = get_Eps(model)
+    df_indEps = IndCompare(df_Eps, model)
+    #export to a spreadsheet
+    if model != 'observed':
+        model = str(str(model).split(" ")[1])
+    df_Eps.to_excel('../results/Eps_'+model+'.xlsx')
+    df_indEps.to_excel('../results/indEps_'+model+'.xlsx')
+    return df_Eps, df_indEps

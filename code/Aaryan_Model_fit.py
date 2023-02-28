@@ -6,6 +6,7 @@ from scipy.optimize import minimize
 from Models import *
 from data_wrangling import *
 from itertools import chain
+from itertools import repeat
 from PyPDF2 import PdfMerger
 import inspect
 from Model_fitting_functions import *
@@ -35,12 +36,12 @@ def get_data_SM(mutation:str):
 
     #now gonna do the scipy.optimize.minimize
 def WT_fit_plot(ax, y,params,label:str):
-        return ax.plot(Signal, y, **params,label=f"{label}")
+        return ax.plot(I_conc, y, **params,label=f"{label}")
 
 
     #define scatter plotting function with log scales
 def WT_Plotter(ax,y, params):
-    out = ax.scatter(Signal, data_[y], **params, marker = 'o')
+    out = ax.scatter(I_conc, data_[y], **params, marker = 'o')
     xScale = ax.set_xscale('log')
     yScale = ax.set_yscale('log')
 
@@ -65,13 +66,26 @@ SM_names=[x[:-4] for x in dat_files]
 
 #WT_params = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]   
 
+
 model_type_in=model_hill
 params_dict={"sen_params":{"As":618.047086,"Bs":16278.856600,"Cs":1300.653790,"Ns":1.096541},"reg_params":{"Ar":1916.175610,"Br":18874.240800,"Cr":0.009030,"Nr":0.820433},"out_h_params":{"Ah":683.835638,"Bh":32464.380200,"Ch":0.000473},"out_params":{"Fo":2.821352,"Ao":0.632148,"Bo":0.972768 ,"Co":2.640174,"No":1.919339}}
 SM_mutant_of_interest="Regulator1"
+n_iter = float=1e5
 #%%
 #thermodynamic
-params_dict={"sen_params":{"a_s":1,"Kp_s":1,"P":1,"Ki_s":1,"C_pi_s":1},"reg_params":{"Ar":1,"Br":1,"Cr":1,"Nr":1},"out_h_params":{"Ah":1,"Bh":1,"Ch":1},"out_params":{"Fo":1,"Ao":1,"Bo":1,"Co":1,"No":1}}
+params_dict={"sen_params":{"a_s":1,"Kp_s":1,"P":1,"Ki_s":1,"C_pi_s":1},"reg_params":{"a _r":1,"Kp_r":1,"Ks_r":1},"out_params":{"a_o":1,"Kp_o":1,"K_lacI_o":1,"C_po_lacI_o":1}}
 
+#model_hill_shaky testing
+################################
+params_dict={"sen_params":{"As":1,"Bs":1,"Cs":1,"Ns":1},"reg_params":{"Ar":1,"Br":1,"Cr":1,"Nr":1},"out_h_params":{"Ah":1,"Bh":1,"Ch":1},"out_params":{"Fo":1,"Ao":1,"Bo":1,"Co":1,"No":1}}
+
+WT_params=param_dictToList(params_dict)
+#WT_params=list(np.array(WT_params)+100)
+#WT_params=[1]*13
+#WT_params=list(np.array(WT_params)+100)
+bnds = tuple(repeat((0,None), len(WT_params)))
+model_type = model_hill_shaky
+n_iter = float=1e5
 
 WT_params=dict_to_list(params_dict)
 WT_params=list(np.array(WT_params)+100)
@@ -94,8 +108,7 @@ params_dict={"sen_params":{"As":1,"Bs":1,"Cs":1,"Ns":1},"reg_params":{"Ar":1,"Br
 #now generating initial guesses
 
 model_type_in=thermodynamic_model
-
-
+#%%
 
 #functionality to add ,
 #  automatically find out number of arguements, automatically set bounds on 
