@@ -186,16 +186,15 @@ def IndCompare(df_Eps, model = 'observed'):
     df_Ep_concCompare['high-med'] =Eps_hm
     df_Ep_concCompare['med-low']= Eps_ml
 
-    #export to a spreadsheet
-    if model != 'observed':
-        model = str(model).split(" ")[1]
-    df_Ep_concCompare.to_excel('../results/'+ model + '.xlsx')
     return df_Ep_concCompare
 
 #export Epistases to an excel document named after the chosen model
 def Eps_toExcel(model= 'observed'):
     df_Eps = get_Eps(model)
-    df_Eps.to_excel('../results/Eps_'+str(model)+'.xlsx')
     df_indEps = IndCompare(df_Eps, model)
-    df_indEps.to_excel('../results/indEps_'+str(model)+'.xlsx')
+    #export to a spreadsheet
+    if model != 'observed':
+        model = str(str(model).split(" ")[1])
+    df_Eps.to_excel('../results/Eps_'+model+'.xlsx')
+    df_indEps.to_excel('../results/indEps_'+model+'.xlsx')
     return df_Eps, df_indEps
