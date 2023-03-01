@@ -11,48 +11,53 @@ from PyPDF2 import PdfMerger
 import inspect
 from Model_fitting_functions import *
  #change dictionary to list of coeffs
-def coef_dict_to_list(coef_dict):
-    return list(coef_dict.values())
-#the single mutant to be studied
-   # function to input paramaters as a list
+#%%
 
-def get_data_SM(mutation:str):
-        df_MT = df
-        data = meta_dict["SM"]
-        data = data.loc[data['Mutant_ID'] == mutation]
-        #WT data missing measurements for inducer = 0.2 so drop last columnn
-        data = data[:-1]
+#steady hill model
+params_dict_hill={"sen_params":{"A_s":1,"B_s":1,"C_s":1,"N_s":1},"reg_params":{"A_r":1,"B_r":1,"C_r":1,"N_r":1},"out_h_params":{"A_h":1,"B_h":1,"C_h":1},"out_params":{"A_o":1,"B_o":1,"C_o":1,"N_o":1},"free_params":{"F_o":1}}
 
-        a = re.search("[0-9]",mutation).start()
-        mut_col = f"{mutation[:a]}"
-        mutation_means = f"{mutation[:a]}_mean"
-        df_MT[[mut_col, "Stripe"]] = data[[mutation_means, "Stripe_mean"]].values
-        df_MT[["Mutant_ID"]]=mutation
-        if mutation.startswith("Output"):
-            df_MT["Sensor"]=meta_dict["WT"].Sensor
+params_list_hill=dict_to_list(params_dict_hill)
 
-        return df_MT
-#data=pd.read_csv('../data/WT_single.csv')
+I_conc=meta_dict["WT"].S
+hill=model_hill(params_list_hill,I_conc)
+func=model_hill.model
 
-    #now gonna do the scipy.optimize.minimize
-def WT_fit_plot(ax, y,params,label:str):
-        return ax.plot(I_conc, y, **params,label=f"{label}")
+# params_list_hill=get_WT_params(model_type=func,start_guess=params_list_hill,n_iter=1e10,method="Nelder-Mead",params_dict=params_dict_hill,custom_settings=[],tol=.01)
+# print(params_list_hill)
+# params_list_hill=get_WT_params(model_type=func,start_guess=params_list_hill,n_iter=1e10,method="Powell",params_dict=params_dict_hill)
+# params_list_hill=get_WT_params(model_type=func,start_guess=params_list_hill,n_iter=1e10,method="Powell",params_dict=params_dict_hill)
+# print(params_list_hill)
+
+# params_list_hill=get_WT_params(model_type=func,start_guess=params_list_hill,n_iter=1e10,method="Nelder-Mead",params_dict=params_dict_hill)
+# #first 8 parameters are good fits, will reset last 8 to 1
+# for i in range(0,len(params_list_hill)):
+#     if i>=8:
+#         params_list_hill[i]=1
+# print(params_list_hill)
+# params_list_hill=get_WT_params(model_type=func,start_guess=params_list_hill,n_iter=1e10,method="Powell",params_dict=params_dict_hill)
+
+#%%
+params_list_hill=[618.05, 16278.86, 1300.65, 1.23445789e+00,2.19715875e+03, 5.09396044e+04, 8.76632583e-03, 1.37272209e+00, 3.97046404e+03, 2.81037530e+04, 5.99908397e-04, 8.61568305e-01, 7.03425130e-01, 7.57153375e+00, 1.25692066e+00, 3.39280741e+00]
+converged_params_list_hill=get_WT_params(model_type=func,start_guess=params_list_hill,n_iter=1e5,method="Nelder-Mead",params_dict=params_dict_hill,custom_settings=[],tol=0.0001)
+converged_params_dict_hill=list_to_dict(old_dict=params_dict_hill,new_values=converged_params_list_hill)
+#%%
+#first get wt params
+
+#then apply bounds to estimate for all single mutants, exporting converged params to excel
+
+model_fitting_SM(model_type=func,n_iter=1e5,params_dict=converged_params_dict_hill)
 
 
-    #define scatter plotting function with log scales
-def WT_Plotter(ax,y, params):
-    out = ax.scatter(I_conc, data_[y], **params, marker = 'o')
-    xScale = ax.set_xscale('log')
-    yScale = ax.set_yscale('log')
+#shaky hill model
 
-    return out, xScale, yScale 
-def dict_to_list(params_dict,return_keys=False):
-    if return_keys==True:
-       a=[list(i.keys()) for i in list(params_dict.values())]
-    elif return_keys==False:
-        a=[list(i.values()) for i in list(params_dict.values())]
-
-    return list(chain.from_iterable(a))
+#getting wt params
+func=model_hill_shaky.model
+a=model_hill_shaky([1]*16,meta_dict["WT"].S)
+I_conc=meta_dict["WT"].S
+params_list_hill_shaky=dict_to_list(a.example_dict)
+params_dict_hill_shaky=a.example_dict
+params_list_hill_shaky=get_WT_params(model_type=func,start_guess=params_list_hill_shaky,n_iter=1e5,method="TNC",params_dict=params_dict_hill_shaky,custom_settings=[],tol=0.001)
+#applying bounds to fit for sm mutants
         
 
 all_files=os.listdir(os.path.join(path_main,"mutants_separated"))
