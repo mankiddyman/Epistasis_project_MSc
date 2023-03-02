@@ -19,9 +19,11 @@ data = pd.read_excel('../data/SM_params.xlsx') # change to model sm
 
 leaky = model_leaky #1
 hill = model_hill #2
-td = thermodynamic_model #3
+#td = thermodynamic_model #3
 hill_shaky = model_hill_shaky #4
- 
+
+rss_data = pd.read_excel('../data/model_hill_SM_params.xlsx')
+rss_df = rss_data[["rss","time_elapsed_s"]]
 # epistasis for Hill Model
 # eps_hill_df = 
 # eps_ind_hill_df = 
@@ -42,20 +44,23 @@ hill_shaky = model_hill_shaky #4
 #%%
 # rss histogram per model
 # experimental epistasis, model epistasis
-exp_eps = pd.read_excel('../data/Source_Data.xlsx', sheet_name='Figure 2')
-exp_eps.drop(exp_eps[exp_eps['Unnamed: 0'] == 'genotype'].index, inplace = True)
-exp_eps.columns = exp_eps.columns.str.replace('Unnamed: 9', 'Epistasis')
-ela_df = exp_eps[['Epistasis']]
-ela_eps = ela_df["Epistasis"]
 #ela_eps.hist()
 #fig, axes = plt.subplots(1, 2)
 #ela_eps.hist(ax=axes[0])
 #ela_eps.hist(ax=axes[1])
 #axes[0].set_title("Experimental")
 #axes[1].set_title("Leaky Model")
-eps_hill_df = get_Eps(model_hill) # important
+# changed because class 
+eps_hill_df = get_Eps(model_hill.model) # important
 eps_hill= eps_hill_df['Ep']
 
+eps_exp_df = get_Eps('observed')
+eps_exp = eps_exp_df['Ep']
+
+eps_exp_list = list(eps_exp)
+eps_exp_test = np.array(eps_exp_list)
+eps_hill_list = list(eps_hill)
+eps_hill_test = np.array(eps_hill_list)
 #%%
 print('The following models are available')
 for i in model_list:
@@ -76,15 +81,15 @@ while model == '1' or model == '2' or model == '3':
         print('You have selected the Leaky model')
         cont = input('Do you want to select a new model? y/n')
         if cont == 'n':
-            print('Residual sum of squares')
-            data["rss"].hist()
-            plt.title("Histogram of residual sum of squares")
-            print('Diagnostic 1: epistasis comparison')
-            fig, axes = plt.subplots(1, 2)
-            ela_eps.hist(ax=axes[0])
-            ela_eps.hist(ax=axes[1])
-            axes[0].set_title("Experimental")
-            axes[1].set_title("Leaky Model")
+            #print('Residual sum of squares')
+            #data["rss"].hist()
+            #plt.title("Histogram of residual sum of squares")
+            #print('Diagnostic 1: epistasis comparison')
+            #fig, axes = plt.subplots(1, 2)
+            #ela_eps.hist(ax=axes[0])
+            #ela_eps.hist(ax=axes[1])
+            #axes[0].set_title("Experimental")
+            #axes[1].set_title("Leaky Model")
             break
     elif model == '2':
         print('You have selected the Hill model')
@@ -93,15 +98,31 @@ while model == '1' or model == '2' or model == '3':
             print('Diagnostic 1: residual sum of squares')
             print('Diagnostic 2: epistasis comparison')
             fig, axes = plt.subplots(1, 2)
-            ela_eps.hist(ax=axes[0])
+            eps_exp.hist(ax=axes[0])
             eps_hill.hist(ax=axes[1])
             axes[0].set_title("Experimental")
             axes[1].set_title("Hill Model")
             fig, axes = plt.subplots(1,1)
-            plt.hist(ela_eps, alpha=0.5, label='Experimental')
+            plt.hist(eps_exp, alpha=0.5, label='Experimental')
             plt.hist(eps_hill, alpha=0.5, label='Hill Model')
             plt.legend(loc='upper right')
+            #fig, axes = plt.subplots(1,1) 
+            #rss_df.plot(x="time_elapsed_s",y="rss")
             plt.show()
+            var_ela = np.var(eps_exp)
+            var_hill = np.var(eps_hill)
+            ratio_var = np.divide(var_ela, var_hill)
+            # 1.42<4
+            alpha = 0.05
+            test = stats.ttest_ind(a=eps_exp_test, b=eps_hill_test, equal_var=True)
+            p_value = getattr(test, 'pvalue')
+            if (p_value<alpha):
+                print("p value = " +str(p_value)+  " < 0.05")
+                print("We reject null hypothesis and conclude that the experimental and model epistasis means are not equal")
+            else:
+                print("p value " +str(p_value)+ "> 0.05")
+                print("we fail to reject null hypothesis and conclude that the experimental and model epistasis means are equal")
+            break
     elif model == '3':
         print('You have selected the Thermodynamic model')
         cont = input('Do you want to select a new model? y/n')

@@ -18,8 +18,11 @@ I_conc_np[1] = 0.000195 #medium Inducer concentration is rounded in df_S, want m
 
 #get parameter values for model from here
 def get_params(model = 'observed'):
-    model_name = str(model).split(" ")[1]
+    old_model_name = str(model).split(" ")[1]
+    new_model_name = old_model_name.removesuffix('.model')
+    model_name = new_model_name
     df_fits = pd.read_excel('../data/'+model_name+'_SM_params.xlsx').rename(columns={'Unnamed: 0': 'mutant'})
+    del df_fits["time_elapsed_s"]
     return df_fits
 
 #stripe output at low, medium and high incucer concentration for WT
@@ -148,7 +151,7 @@ def get_Eps(model='observed'):
     if model != 'observed':
         df_fits = get_params(model)
     else:
-        df_fits = get_params(model_hill)
+        df_fits = []
     print("printing every 100th mutant processed to show progress...")
     for i, mut_id in enumerate(df_M['genotype'][(df_M['inducer level'] == 'low')][1:]):
         if i % 100 == 0:
