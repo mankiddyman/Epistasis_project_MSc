@@ -110,12 +110,16 @@ class model_thermodynamic:
     def __init__(self,params_list:list,I_conc):
         self.params_list=params_list
         self.I_conc=I_conc
-        self.example_dict={"sen_params":{"a_s":1,"Kp_s":1,"P":1,"Ki_s":1,"C_pi_s":1},"reg_params":{"a_r":1,"Kp_r":1,"Cr":1,"Nr":1},"out_h_params":{"Ah":1,"Bh":1,"Ch":1}}
+        self.example_dict={"sen_params":{"P_b":1,"K_12":1,"C_pa":1,"A_s":1},"reg_params":{"C_pt":1,"K_t":1,"A_r":1},"out_h_params":{},"out_params":{"C_pl":1, "K_l":1,"A_o":1},"shared_params":{},"fixed_params":{"F_o":1,"P_p":1}}
+    # P_b = Kp_bent*[P]
+    # K_t = summarises dimirasation and tetracycline binding 
+    # P_p = K_p*[P]
+    # A_n is alpha divided by beta
     
     # thermodynamics model
     @staticmethod
     def model(params_list,I_conc):
-        correct_length=13
+        correct_length=12
         if len(params_list)!=correct_length:
             print("params_list of incorrect length should be of length ",correct_length)
             return 0
@@ -124,32 +128,42 @@ class model_thermodynamic:
         # P represents concentration of polymerase
         # Ki, Kii, Kps, Kpr, Ks, Kpo, K_lacI represent the binding affinity of the interaction
         # C_pi, C_ps, C_po_lacI represent the level of cooperative binding between activator or repressor with polymerase
-        a_s=params_list[0]
-        a_r=params_list[1]
-        a_o=params_list[2]
-        Ki_s=params_list[3]
-        Kp_s=params_list[4]
-        Kp_r=params_list[5]
-        Ks_r=params_list[6]
-        Kp_o=params_list[7]
-        K_lacI_o=params_list[8]
-        P=params_list[9]
-        C_pi_s=params_list[10]
-        C_ps_r=params_list[11]
-        C_po_lacI_o=params_list[12]
+        # sensor
+        P_b=params_list[0]
+        K_12=params_list[1]
+        C_pa=params_list[2]
+        A_s=params_list[3]
+        # regulator
+        C_pt=params_list[4]
+        K_t=params_list[5]
+        A_r=params_list[6]
+        # output
+        C_pl=params_list[7]
+        K_l=params_list[8]
+        A_o=params_list[9]
+        # shared
+        
+        # fixed
+        F_o=params_list[10]
+        P_p=params_list[11]
         I=I_conc
 
-        Sensor = a_s*(Kp_s*P+2*Ki_s*I*Kp_s*P+C_pi_s*Kp_s*Ki_s*P*np.power(I,2))
-        Sensor /= (1+2*Ki_s*I+Kp_s*P+2*Ki_s*I*Kp_s*P+np.power(Ki_s*I,2)+C_pi_s*Kp_s*Ki_s*P*np.power(I,2))
+        Sensor = P_b+C_pa*P_p*K_12*I**2
+        Sensor /= 1+P_b+C_pa*P_p*K_12*I**2+K_12*I**2
+        Sensor *= A_s
 
-        Regulator = a_r*(Kp_r*P+Kp_r*P*Ks_r*Sensor*C_ps_r)
-        Regulator /= (1+Kp_r*P+Kp_r*P*Ks_r*Sensor*C_ps_r+Ks_r*Sensor)
+        Regulator = P_p+C_pt*P_p*K_t*Sensor**2
+        Regulator /= 1+P_p+C_pt*P_p*K_t*Sensor**2+K_t*Sensor**2
+        Regulator *= A_r
 
-        Output_half = a_o*(Kp_o*P+K_lacI_o*Sensor*Kp_o*P*C_po_lacI_o)
-        Output_half /= (1+Kp_o*P+K_lacI_o*Sensor*Kp_o*P*C_po_lacI_o+K_lacI_o*Sensor)
-
-        Output = a_o*(Kp_o*P+K_lacI_o*(Sensor+Regulator)*Kp_o*P*C_po_lacI_o)
-        Output /= (1+Kp_o*P+K_lacI_o*(Sensor+Regulator)*Kp_o*P*C_po_lacI_o+K_lacI_o*(Sensor+Regulator))
+        Output_half = P_p+C_pl*K_l*P_p*Sensor**2
+        Output_half /= 1+P_p+C_pl*K_l*P_p*Sensor**2+K_l*Sensor**2
+        Output_half *= A_o
+        
+        Output = P_p+C_pl*K_l*P_p*(Sensor+Regulator)**2
+        Output /= 1+P_p+C_pl*K_l*P_p*(Sensor+Regulator)**2+K_l*(Sensor+Regulator)**2
+        Output *= A_o
+        Output *= F_o
 
         return Sensor, Regulator, Output_half, Output
 #%%
