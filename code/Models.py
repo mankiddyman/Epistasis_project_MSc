@@ -34,8 +34,11 @@ class model_hill:
     def __init__(self,params_list:list,I_conc):
         self.params_list=params_list
         self.I_conc=I_conc
-        self.example_dict={"sen_params":{"A_s":1,"B_s":1,"C_s":1,"N_s":1},"reg_params":{"A_r":1,"B_r":1,"C_r":1,"N_r":1},"out_h_params":{"A_h":1,"B_h":1,"C_h":1},"out_params":{"A_o":1,"B_o":1,"C_o":1,"N_o":1},"free_params":{"F_o":1}}
-        self.n_parameters=16
+        self.example_dict_model_1={"sen_params":{"A_s":1,"B_s":1,"C_s":1,"N_s":1},"reg_params":{"A_r":1,"B_r":1,"C_r":1,"N_r":1},"out_h_params":{"A_h":1,"B_h":1,"C_h":1},"out_params":{"A_o":1,"B_o":1,"C_o":1,"N_o":1},"free_params":{"F_o":1}}
+        self.example_dict_model_2={"sen_params":{"A_s":1,"B_s":1,"C_s":1,"N_s":1},"reg_params":{"A_r":1,"B_r":1,"C_r":1,"N_r":1},"out_h_params":{},"out_params":{"A_o":1,"B_o":1,"C_o":1,"N_o":1,"F_o":1},"free_params":{}}
+        
+        self.n_parameters_1=16
+        self.n_parameters_2=13
     @staticmethod    
     def model(params_list,I_conc):
         correct_length=16
@@ -101,7 +104,70 @@ class model_hill:
         #I wonder why we describe different repression strengths for repression by LacI_regulator and LacI_sensor?
         return Sensor,Regulator,Output_half, Output
 
-    
+    @staticmethod    
+    def model_2(params_list,I_conc): #reformulated so that output half and output are same parameters with F_o to scale
+        correct_length=13
+        #S is subscript for parameters corresponding to Sensor
+        #R is subscript for parameters corresponding to Regulator
+        #H is subscript for parameters corresponding to the half network I->S -| O
+        #O is subscript for parameters corresponding to Output
+        # As=params_dict['sen_params']['As']
+        # Bs=params_dict['sen_params']['Bs']
+        # Cs=params_dict['sen_params']['Cs']
+        # Ns=params_dict['sen_params']['Ns']
+        # Ar=params_dict['reg_params']['Ar']
+        # Br=params_dict['reg_params']['Br']
+        # Cr=params_dict['reg_params']['Cr']
+        # Nr=params_dict['reg_params']['Nr']
+        # Ah=params_dict['out_h_params']['Ah']
+        # Bh=params_dict['out_h_params']['Bh']
+        # Ch=params_dict['out_h_params']['Ch']
+        # Fo=params_dict['out_params']['Fo']
+        # Ao=params_dict['out_params']['Ao']
+        # Bo=params_dict['out_params']['Bo']
+        # Co=params_dict['out_params']['Co']
+        # No=params_dict['out_params']['No']
+        
+        
+
+        if len(params_list)!=correct_length:
+            print("params_list of incorrect length should be of length ",correct_length)
+            return 0
+        #sensor
+        A_s=params_list[0]
+        B_s=params_list[1]
+        C_s=params_list[2]
+        N_s=params_list[3]
+        #regulator
+        A_r=params_list[4]
+        B_r=params_list[5]
+        C_r=params_list[6]
+        N_r=params_list[7]
+        #out_half
+        
+        #output
+        A_o=params_list[8]
+        B_o=params_list[9]
+        C_o=params_list[10]
+        N_o=params_list[11]
+        
+        #free
+        F_o=params_list[12]
+        
+        Sensor = A_s+B_s*np.power(C_s*I_conc,N_s)
+        Sensor /= 1+np.power(C_s*I_conc,N_s)
+
+        Regulator = B_r/(1+np.power(C_r*Sensor,N_r))
+        Regulator += A_r
+
+        Output_half = B_o/(1+np.power(C_o*Sensor,N_o))
+        Output_half += A_o
+
+        Output = A_o + B_o/(1+np.power(C_o*(Sensor+Regulator),N_o))
+        Output*=F_o
+        #I wonder why we describe different repression strengths for repression by LacI_regulator and LacI_sensor?
+        return Sensor,Regulator,Output_half, Output
+
 
 #%%
     
@@ -254,6 +320,9 @@ class model_hill_shaky:
             Output_half = np.append(Output_half, SRHO[0,2])
             Output = np.append(Output, SRHO[0,3])
         return np.array(Sensor),np.array(Regulator) ,np.array(Output_half), np.array(Output)
+    @staticmethod
+    def model_2(params_list:list,I_conc):
+        #this model 
 #%%
 
 #function to minimize while fitting, expects a dictionary of parameters corresponding to the model of interest, 

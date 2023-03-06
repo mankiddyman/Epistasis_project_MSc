@@ -224,7 +224,7 @@ def model_fitting_SM(model_type:callable,params_dict:dict,n_iter:float=1e5,mutan
 
 
         print("done fitting, now exporting")
-        fig.savefig(os.path.join("..","results",f"{SM_mutant_of_interest}"+"_"+str(model_type.__name__)+".pdf"), bbox_inches='tight')
+        fig.savefig(os.path.join("..","results",f"{SM_mutant_of_interest}"+"_"+str(model_type.__qualname__+".pdf")), bbox_inches='tight')
         
 
         time_elapsed=str("%s" % (time.time()-start_time_per_mutant))
@@ -340,7 +340,7 @@ def get_WT_params(model_type,start_guess:list,params_dict:dict,custom_settings:l
 #to add, feature that will generate initial guess from wildtype
 #which u then feed to the actual running of the function
 #%%
-def generate_bounds(params_dict:dict,node:str,custom_settings:list=[]):
+def generate_bounds(params_dict:dict,node:str="",custom_settings:list=[]):
     #need to generate a tuple
     #where all common variables are allowed to vary?
     #use custom settings to set
