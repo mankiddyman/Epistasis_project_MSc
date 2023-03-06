@@ -5,6 +5,7 @@ from itertools import permutations
 from scipy import stats
 from data_wrangling import meta_dict
 from Models import *
+from Model_fitting_functions import dict_to_list
 
 #This file is defines the functions used to calculate epistasis for all double and triple mutants from observed and expected flourcsence at low, medium and high inducer concs. See Epistasis_calcs.py to run functions for a given model and export them to excel.
 df_S = meta_dict['SM']
@@ -18,8 +19,8 @@ I_conc_np[1] = 0.000195 #medium Inducer concentration is rounded in df_S, want m
 
 #get parameter values for model from here
 def get_params(model = 'observed'):
-    old_model_name = str(model).split(" ")[1]
-    new_model_name = old_model_name.removesuffix('.model')
+    old_model_name = str(model).split(" ")[0]
+    new_model_name = old_model_name.removeprefix('<__main__.')
     model_name = new_model_name
     df_fits = pd.read_excel('../data/'+model_name+'_SM_params.xlsx').rename(columns={'Unnamed: 0': 'mutant'})
     del df_fits["time_elapsed_s"]
@@ -42,20 +43,20 @@ def g(mutant:str):
 
 #expected flourecence for a set set of parameters and a chosen model at concentrations in I_conc dictionary relative to WT
 def g_hat(mutant:str, model, df_fits):
-
     params = df_fits[df_fits['mutant']== mutant].values.flatten().tolist()[1:-1]
-    g_hat = np.divide(model(params_list = params, I_conc = I_conc_np)[-1],g_WT)
+    g_hat = np.divide(model.model(params_list = params, I_conc = I_conc_np)[-1],g_WT)
     return g_hat
 
 #expected log fold flourecence for mutants assuming log additivity of single mutants
 def G_log(mutants:list):
-    G_log = g(mutants[0])[0]
-    G_log_std = np.power(g(mutants[0])[1], 2)
-    G_log_std_rel = np.power(g(mutants[0])[2], 2)
+    G_log, G_log_std, G_log_std_rel = g(mutants[0])
+    G_log_std = np.power(G_log_std, 2)
+    G_log_std_rel = np.power(G_log_std_rel, 2)
     for mut in mutants[1:]:
-        G_log = np.multiply(g(mut)[0],G_log)
-        G_log_std += np.power(g(mut)[1], 2)
-        G_log_std_rel += np.power(g(mut)[2], 2)
+        G_log, G_log_std, G_log_std_rel = g(mut)
+        G_log = np.multiply(G_log,G_log)
+        G_log_std += np.power(G_log_std, 2)
+        G_log_std_rel += np.power(G_log_std_rel, 2)
     G_log = np.log10(G_log)
     x = np.power(G_log_std, 1/2)
     y = np.power(G_log_std_rel, 1/2)
@@ -63,19 +64,24 @@ def G_log(mutants:list):
     G_log_std_rel = np.multiply(G_log, y)
     return G_log, G_log_std, G_log_std_rel
 
+#get parameter names from dictionary of a certain model class
+def get_param_names(model, mut_type:str):
+    
+    return
+
 #expected GFP for double or triple mutants for a given model
 def G_hat(model, mutants:list, df_fits:pd.DataFrame):
     #copy df_fits and replace relevant parameters with mutated ones in df_fits row for first mutant in "mutants" list
-
     df_fits1 = df_fits.copy(deep = False)
     for mut in mutants[1:]:
-        param_id = f"_{mut[0].lower()}"
-        columns_OI = df_fits1.filter(like=param_id).columns #parameters of interest to be replaced with mutant parameters
-        new_params = df_fits1[df_fits1['mutant'] == mut].filter(like=param_id)#.values
-        if param_id.endswith('o'):
-            columns_OI = columns_OI.append(df_fits1.filter(like='_h').columns)
-            new_params = pd.concat([new_params, df_fits1[df_fits1['mutant'] == mut].filter(like= '_h')], axis = 1)
-        df_fits1.loc[df_fits1['mutant'] == mutants[0],columns_OI] = new_params.values
+        #get parameter names relevant to "mut"
+        mut_type = f"{mut[0:3].lower()}"
+        param_list = []
+        for key in model.example_dict:
+            if key.startswith(mut_type):
+                param_list += list(model.example_dict[key])
+        new_params = df_fits1[df_fits1['mutant'] == mut].filter(param_list)
+        df_fits1.loc[df_fits1['mutant'] == mutants[0],new_params.columns] = new_params.values
     #get parameter values for mutant combination
     G_hat = np.log10(g_hat(mutants[0], model, df_fits1))
     return G_hat
@@ -114,7 +120,7 @@ def get_mut_names(mut_id:str):
 
 #observed GFP for double or triple mutants
 #takes list of possible combinations of mutation ids as parameter e.g. ['O1_R1', 'R1_O1']
-def G_obs(mutants:list):
+def G_lab(mutants:list):
     mut_perms = get_mut_ids(mutants)
     df_mutant = df_M.loc[df_M['genotype'] == mut_perms[0]]
     for mut in mut_perms[1:]:
@@ -124,14 +130,14 @@ def G_obs(mutants:list):
     #NB - assumes low inducer concs come above medium, which come before high in mutant data
     MT_mean = np.array(df_mutant['obs_fluo_mean'])
     MT_sd = np.array(df_mutant['obs_SD'])
-    G_obs = np.log10(np.divide(MT_mean, g_WT))
-    return G_obs, MT_sd
+    G_lab = np.log10(np.divide(MT_mean, g_WT))
+    return G_lab, MT_sd
 
 def Epistasis(mutants:list,df_fits:pd.DataFrame, model = 'observed'):
     G_log_mean = G_log(mutants)[0]
     #Ghat_logadd_std = G_log(mutants)[1]   
     if model == 'observed':
-        G = G_obs(mutants)
+        G = G_lab(mutants)
         G_mean = G[0]
         Epsilon =  G[0] - G_log_mean
         # Mann-Whitney U test removed because I deleted part of the syntax accidently and couldn't see how to quickly fix it
