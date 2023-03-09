@@ -64,11 +64,11 @@ model_fitting_SM(model_type=func,n_iter=1e5,params_dict=converged_params_dict_hi
 
 #thermodynamic model
 
-therm_model=model_thermodynamic(params_list=[1]*12,I_conc=meta_dict["WT"].S)
+therm_model=model_thermodynamic(params_list=[1]*14,I_conc=meta_dict["WT"].S)
 params_therm_dict=therm_model.example_dict
 params_therm_list=dict_to_list(params_therm_dict)
 func=therm_model.model
-params_therm_dict={"sen_params":{"P_b":9.06694217e-022,"K_12":3.48238773e+01,"C_pa":1.00009826e+00 ,"A_s":1.05009976e+04},"reg_params":{"C_pt":1e-3,"K_t":7.71158234e-03,"A_r":6.75080451e+03},"out_h_params":{},"out_params":{"C_pl":1e-4, "K_l":6.00648278e-02,"A_o":3.13315860e+04},"free_params":{},"fixed_params":{"F_o":1.83010449e+00,"P_p":3.51386776e+05}}
+params_therm_dict={"sen_params":{"P_b":1,"P_u":1,"K_12":1,"C_pa":1,"A_s":1},"reg_params":{"P_r":1,"C_pt":1,"K_t":1,"A_r":1},"out_h_params":{},"out_params":{"P_o":1,"C_pl":1, "K_l":1,"A_o":1},"free_params":{},"fixed_params":{"F_o":1}}
 params_therm_list=dict_to_list(params_therm_dict)
 params_therm_list=get_WT_params(model_type=func,start_guess=params_therm_list,n_iter=1e5,method="Nelder-Mead",params_dict=params_therm_dict,custom_settings=[[1,0,0,0,0],[None,1,1,None,None],["C_pa","C_pt","C_pl","P_p","F_o"]],tol=1)
 params_therm_list=get_WT_params(model_type=func,start_guess=params_therm_list,n_iter=1e5,method="Nelder-Mead",params_dict=params_therm_dict,custom_settings=[[1,0,0,0,0],[None,1,1,None,None],["C_pa","C_pt","C_pl","P_p","F_o"]],tol=1)
