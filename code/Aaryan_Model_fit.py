@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import minimize
 from Models import *
+from Models import model_hill
 from data_wrangling import *
 from itertools import chain
 from itertools import repeat
@@ -14,7 +15,7 @@ from Model_fitting_functions import *
 #%%
 
 #steady hill model_1
-params_dict_hill={"sen_params":{"A_s":1,"B_s":1,"C_s":1,"N_s":1},"reg_params":{"A_r":1,"B_r":1,"C_r":1,"N_r":1},"out_h_params":{"A_h":1,"B_h":1,"C_h":1},"out_params":{"A_o":1,"B_o":1,"C_o":1,"N_o":1},"free_params":{"F_o":1}}
+params_dict_hill={"sen_params":{"A_s":2,"B_s":1,"C_s":1,"N_s":1},"reg_params":{"A_r":1,"B_r":1,"C_r":1,"N_r":1},"out_h_params":{"A_h":1,"B_h":1,"C_h":1},"out_params":{"A_o":1,"B_o":1,"C_o":1,"N_o":1},"free_params":{"F_o":1}}
 
 params_list_hill=dict_to_list(params_dict_hill)
 
@@ -59,11 +60,31 @@ converged_params_list_hill_2=get_WT_params(model_type=func,start_guess=converged
 converged_params_list_hill_2=get_WT_params(model_type=func,start_guess=converged_params_list_hill_2,n_iter=1e5,method="Nelder-Mead",params_dict=params_dict_hill_2,custom_settings=[],tol=1)
 converged_params_dict_hill_2=list_to_dict(old_dict=params_dict_hill_2,new_values=converged_params_list_hill_2)
 model_fitting_SM(model_type=func,n_iter=1e5,params_dict=converged_params_dict_hill_2)
-+#%%
+#%%
 
+#thermodynamic model
 
-#shaky hill model
+therm_model=model_thermodynamic(params_list=[1]*12,I_conc=meta_dict["WT"].S)
+params_therm_dict=therm_model.example_dict
+params_therm_list=dict_to_list(params_therm_dict)
+func=therm_model.model
+params_therm_dict={"sen_params":{"P_b":9.06694217e-022,"K_12":3.48238773e+01,"C_pa":1.00009826e+00 ,"A_s":1.05009976e+04},"reg_params":{"C_pt":1e-3,"K_t":7.71158234e-03,"A_r":6.75080451e+03},"out_h_params":{},"out_params":{"C_pl":1e-4, "K_l":6.00648278e-02,"A_o":3.13315860e+04},"free_params":{},"fixed_params":{"F_o":1.83010449e+00,"P_p":3.51386776e+05}}
+params_therm_list=dict_to_list(params_therm_dict)
+params_therm_list=get_WT_params(model_type=func,start_guess=params_therm_list,n_iter=1e5,method="Nelder-Mead",params_dict=params_therm_dict,custom_settings=[[1,0,0,0,0],[None,1,1,None,None],["C_pa","C_pt","C_pl","P_p","F_o"]],tol=1)
+params_therm_list=get_WT_params(model_type=func,start_guess=params_therm_list,n_iter=1e5,method="Nelder-Mead",params_dict=params_therm_dict,custom_settings=[[1,0,0,0,0],[None,1,1,None,None],["C_pa","C_pt","C_pl","P_p","F_o"]],tol=1)
+params_therm_list=get_WT_params(model_type=func,start_guess=params_therm_list,n_iter=1e5,method="TNC",params_dict=params_therm_dict,custom_settings=[[1,0,0,0,0],[None,1,1,None,None],["C_pa","C_pt","C_pl","P_p","F_o"]],tol=1)
+#I like the sensor so i will reinitialise parameters of sensor
+a=params_therm_list[0:3]
+b=params_therm_list[10:12]
+params_therm_list=dict_to_list(params_therm_dict)
+params_therm_list[0:3]=a
+params_therm_list[10:12]=b
+params_therm_dict=list_to_dict(old_dict=params_therm_dict,new_values=params_therm_list)
+params_therm_list=get_WT_params(model_type=func,start_guess=params_therm_list,n_iter=1e5,method="Nelder-Mead",params_dict=params_therm_dict,custom_settings=[[1,0,0,params_therm_dict['fixed_params']['F_o'],params_therm_dict['fixed_params']['P_p']],[None,1,1,params_therm_dict['fixed_params']['F_o'],params_therm_dict['fixed_params']['P_p']],["C_pa","C_pt","C_pl","P_p","F_o"]],node="Regulator",tol=1)
+params_therm_list=[1e-5]*12
+params_therm_list=get_WT_params(model_type=func,start_guess=params_therm_list,n_iter=1e5,method="Nelder-Mead",params_dict=params_therm_dict,custom_settings=[[1,0,0],[None,1,1],["C_pa","C_pt","C_pl"]],tol=0.0011)
 
+#%%
 #getting wt params
 func=model_hill_shaky.model
 a=model_hill_shaky([1]*16,meta_dict["WT"].S)
@@ -81,7 +102,7 @@ SM_names=[x[:-4] for x in dat_files]
 #SM_names=SM_names[0:10] #remove later
 
 #paramater estimates from WT:
-#WT_params = [6.59963463e+02, 1.63471394e+04, 1.25925588e+03, 1.16043953e+00, 1.99831036e+03, 2.04000859e+11, 2.77180774e+06, 8.37522575e-01, 5.47787795e-06, 6.71081447e+04, 1.41294256e-03, 5.41433758e+07,2.12643877e+00, 2.72060461e+00, 1.25044310e+00]
+#WT_params = [6.59963463e+02, 1.63471394e+04, 1.25925588e+03, 1.16043953e+00, 1.99831036e+03,    2.04000859e+11, 2.77180774e+06, 8.37522575e-01, 5.47787795e-06, 6.71081447e+04, 1.41294256e-03, 5.41433758e+07,2.12643877e+00, 2.72060461e+00, 1.25044310e+00]
 
 #WT_params = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]   
 

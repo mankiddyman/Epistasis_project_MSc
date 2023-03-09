@@ -111,28 +111,12 @@ class model_hill:
         #R is subscript for parameters corresponding to Regulator
         #H is subscript for parameters corresponding to the half network I->S -| O
         #O is subscript for parameters corresponding to Output
-        # As=params_dict['sen_params']['As']
-        # Bs=params_dict['sen_params']['Bs']
-        # Cs=params_dict['sen_params']['Cs']
-        # Ns=params_dict['sen_params']['Ns']
-        # Ar=params_dict['reg_params']['Ar']
-        # Br=params_dict['reg_params']['Br']
-        # Cr=params_dict['reg_params']['Cr']
-        # Nr=params_dict['reg_params']['Nr']
-        # Ah=params_dict['out_h_params']['Ah']
-        # Bh=params_dict['out_h_params']['Bh']
-        # Ch=params_dict['out_h_params']['Ch']
-        # Fo=params_dict['out_params']['Fo']
-        # Ao=params_dict['out_params']['Ao']
-        # Bo=params_dict['out_params']['Bo']
-        # Co=params_dict['out_params']['Co']
-        # No=params_dict['out_params']['No']
-        
+   
         
 
         if len(params_list)!=correct_length:
             print("params_list of incorrect length should be of length ",correct_length)
-            return 0
+            return None
         #sensor
         A_s=params_list[0]
         B_s=params_list[1]
@@ -176,15 +160,21 @@ class model_thermodynamic:
     def __init__(self,params_list:list,I_conc):
         self.params_list=params_list
         self.I_conc=I_conc
-        self.example_dict={"sen_params":{"P_b":1,"K_12":1,"C_pa":1,"A_s":1},"reg_params":{"C_pt":1,"K_t":1,"A_r":1},"out_h_params":{},"out_params":{"C_pl":1, "K_l":1,"A_o":1},"shared_params":{},"fixed_params":{"F_o":1,"P_p":1}}
+        self.example_dict={"sen_params":{"P_b":1,"K_12":1,"C_pa":1,"A_s":1},"reg_params":{"C_pt":1,"K_t":1,"A_r":1},"out_h_params":{},"out_params":{"C_pl":1, "K_l":1,"A_o":1},"free_params":{},"fixed_params":{"F_o":1,"P_p":1}}
     # P_b = Kp_bent*[P]
     # K_t = summarises dimirasation and tetracycline binding 
     # P_p = K_p*[P]
     # A_n is alpha divided by beta
+    #free params are those that vary for everty mutant 
+    #fixed params are those that are constant for every node and are determined via WT
+    #constraints
+    #>C_pa>1
+    #0<C_pt<1
+    #0<C_pl<1
     
     # thermodynamics model
     @staticmethod
-    def model(params_list,I_conc):
+    def model(params_list:list,I_conc):
         correct_length=12
         if len(params_list)!=correct_length:
             print("params_list of incorrect length should be of length ",correct_length)
@@ -323,6 +313,50 @@ class model_hill_shaky:
     @staticmethod
     def model_2(params_list:list,I_conc):
         #this model 
+        correct_length=16
+        #S is subscript for parameters corresponding to Sensor
+        #R is subscript for parameters corresponding to Regulator
+        #H is subscript for parameters corresponding to the half network I->S -| O
+        #O is subscript for parameters corresponding to Output
+        
+        #creates variables described in params_dict 
+        if len(params_list)!=correct_length:
+            print("params_list of incorrect length should be of length ",correct_length)
+            return None
+        
+        #sensor
+        A_s=params_list[0]
+        B_s=params_list[1]
+        C_s=params_list[2]
+        N_s=params_list[3]
+        #regulator
+        A_r=params_list[4]
+        B_r=params_list[5]
+        C_r=params_list[6]
+        N_r=params_list[7]
+        #out_half
+        A_h=params_list[8]
+        B_h=params_list[9]
+        C_h=params_list[10]
+        #output
+        A_o=params_list[11]
+        B_o=params_list[12]
+        C_o=params_list[13]
+        N_o=params_list[14]
+        #free
+        F_o=params_list[15]
+        
+        Sensor = np.array([])
+        Regulator = np.array([])
+        Output_half = np.array([])
+        Output = np.array([])
+        #initial conditions assumed as steady state with no inducer present
+        S0 = A_r
+        R0 = B_r/(1+np.power(C_r*S0,N_r))+ A_r
+        H0 = B_h/(1+np.power(C_h*S0,N_o))+A_h
+        O0 = A_o*A_h + B_o*B_h/(1+np.power(C_h*(S0+C_o*R0),N_o))*F_o
+        SRHO0 = np.array([S0,R0,H0,O0])
+       
 #%%
 
 #function to minimize while fitting, expects a dictionary of parameters corresponding to the model of interest, 

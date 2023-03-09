@@ -98,7 +98,7 @@ def list_to_dict(old_dict:dict,new_values:list):
     return new_dict
 
 
-def model_fitting_SM(model_type:callable,params_dict:dict,n_iter:float=1e5,mutant_range:slice=slice(0,len(SM_names)),):
+def model_fitting_SM(model_type:callable,params_dict:dict,n_iter:float=1e5,mutant_range:slice=slice(0,len(SM_names)),custom_settings:list=[]):
         #n_iter is how many iterations u want to evaluate
         #mutant_range is if u only want to do a specific few mutants at a time eg for testing
     start_time_all=time.time()    
@@ -131,11 +131,12 @@ def model_fitting_SM(model_type:callable,params_dict:dict,n_iter:float=1e5,mutan
         print("starting paramaters:\n", params_dict)
         
         if SM_mutant_of_interest.startswith("Sensor"):
-            bnds=generate_bounds(params_dict=params_dict,node="Sensor")[0]
+            
+            bnds=generate_bounds(params_dict=params_dict,node="Sensor",custom_settings=custom_settings)[0]
         elif SM_mutant_of_interest.startswith("Regulator"):
-            bnds=generate_bounds(params_dict=params_dict,node="Regulator")[0]
+            bnds=generate_bounds(params_dict=params_dict,node="Regulator",custom_settings=custom_settings)[0]
         elif SM_mutant_of_interest.startswith("Output"):
-            bnds=generate_bounds(params_dict=params_dict,node="Output")[0]
+            bnds=generate_bounds(params_dict=params_dict,node="Output",custom_settings=custom_settings)[0]
             
         min_result=minimize(min_fun,args=(data_,model_type),x0= WT_params ,method='Nelder-Mead',bounds=bnds,options={"maxiter":n_iter,"disp":True})
         print("finished fitting")
@@ -216,7 +217,8 @@ def model_fitting_SM(model_type:callable,params_dict:dict,n_iter:float=1e5,mutan
         txt="time elapsed for this fit \n"+result.getvalue()
         fig.text(1.1,0.5,txt)
         sys.stdout=old_stdout
-
+        txt=str(bnds)
+        fig.text(1.1,0,txt)
         plt.suptitle(title,fontweight="bold")
 
         plt.show()
@@ -254,14 +256,15 @@ def model_fitting_SM(model_type:callable,params_dict:dict,n_iter:float=1e5,mutan
     return 1
 
 #%%
-def get_WT_params(model_type,start_guess:list,params_dict:dict,custom_settings:list,tol:float,method="Nelder-Mead",n_iter:float=1e5):
+def get_WT_params(model_type,start_guess:list,params_dict:dict,custom_settings:list,tol:float,method="Nelder-Mead",n_iter:float=1e5,node=""):
     #this function will estimate the wild type parameters for a given model.
     #now loading wt dataframe
     start_time=time.time()   
     if start_guess==[]:
         start_guess=[1]*20
     data_=meta_dict['WT']
-    min_result=minimize(min_fun,args=(data_,model_type),x0=start_guess,method='Nelder-Mead',tol=1,bounds=generate_bounds(params_dict=params_dict,node="",custom_settings=custom_settings)[0],options={"maxiter":n_iter,"disp":True})
+    bnds=generate_bounds(params_dict=params_dict,node=node,custom_settings=custom_settings)[0]
+    min_result=minimize(min_fun,args=(data_,model_type),x0=start_guess,method='Nelder-Mead',tol=1,bounds=bnds,options={"maxiter":n_iter,"disp":True})
 
     Sensor_est_array,Regulator_est_array,Output_est_array, Stripe_est_array = model_type(params_list=min_result.x,I_conc=data_.S)
     
@@ -316,7 +319,8 @@ def get_WT_params(model_type,start_guess:list,params_dict:dict,custom_settings:l
     txt=f'''{min_result}
     '''
     fig.text(0.7,-.81,txt,wrap=True)
-
+    txt=str(bnds)
+    fig.text(1.1,0,txt)
 
     old_stdout=sys.stdout
     result=StringIO()
@@ -368,8 +372,6 @@ def generate_bounds(params_dict:dict,node:str="",custom_settings:list=[]):
             bnds_list[i]=[WT_params[i],WT_params[i]]
         bnds_list
 
-        
-        
         #sensor keys
         keys=list(params_dict["sen_params"].keys())
         #sensor values
@@ -434,6 +436,7 @@ def generate_bounds(params_dict:dict,node:str="",custom_settings:list=[]):
     for i in range(0,len(keys_indices_to_change)):
             
             bnds_list[keys_indices_to_change[i]]=[lower,None]
+    
     
     #after applying which bounds are constant we now want to apply the custom settings
     if custom_settings!=[]:
