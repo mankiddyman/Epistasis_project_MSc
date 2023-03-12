@@ -291,22 +291,22 @@ class model_hill_shaky:
                 S_prod = A_s+B_s*np.power(C_s*conc,N_s)
                 S_prod /= 1+np.power(C_s*conc,N_s)
             #change in S concentration w.r.t. time, deg for degredation rate
-            dSdt = S_prod - S
+                dSdt = S_prod - S
 
-            R_prod = B_r/(1+np.power(C_r*S,N_r))
-            R_prod += A_r
+                R_prod = B_r/(1+np.power(C_r*S,N_r))
+                R_prod += A_r
 
-            dRdt = R_prod - R
+                dRdt = R_prod - R
 
-            O_half_prod = B_h/(1+np.power(C_h*S,N_o))
-            O_half_prod += A_h
+                O_half_prod = B_h/(1+np.power(C_h*S,N_o))
+                O_half_prod += A_h
 
-            dHdt = O_half_prod - H
+                dHdt = O_half_prod - H
 
-            O_prod = A_o*A_h + B_o*B_h/(1+np.power(C_h*(S+C_o*R),N_o))
-            O_prod*=F_o #should Fo scale degredation as well?
+                O_prod = A_o*A_h + B_o*B_h/(1+np.power(C_h*(S+C_o*R),N_o))
+                O_prod*=F_o #should Fo scale degredation as well?
 
-            dOdt = O_prod - O
+                dOdt = O_prod - O
                 return np.array([dSdt, dRdt, dHdt, dOdt])
 
             SRHO = odeint(ODEs, SRHO0, t)
@@ -563,23 +563,23 @@ def dict_to_list(params_dict,return_keys=False):
     elif return_keys==False:
         a=[list(i.values()) for i in list(params_dict.values())]
         return list(chain.from_iterable(a))
-#%%
-dict_model_thermo={"sen_params":{"P_b":1,"P_u":1,"K_12":1,"C_pa":1,"A_s":1},"reg_params":{"P_r":1,"C_pt":1,"K_t":1,"A_r":1},"out_h_params":{},"out_params":{"P_o":1,"C_pl":1, "K_l":1,"A_o":1},"free_params":{},"fixed_params":{"F_o":1}}
+# #%%
+# dict_model_thermo={"sen_params":{"P_b":1,"P_u":1,"K_12":1,"C_pa":1,"A_s":1},"reg_params":{"P_r":1,"C_pt":1,"K_t":1,"A_r":1},"out_h_params":{},"out_params":{"P_o":1,"C_pl":1, "K_l":1,"A_o":1},"free_params":{},"fixed_params":{"F_o":1}}
 
-params_list =  [9.06e-02,3e2, 3.48e+01, 9.00e-10, 1.050e+04, 1,3e-2, 7.711e-03, 6.750e+03 ,1, 6.006e-02, 3.133e+04 ,1.830e+00 ,3.513e+05] #dict_to_list(dict_model_thermo) #
+# params_list =  [9.06e-02,3e2, 3.48e+01, 9.00e-10, 1.050e+04, 1,3e-2, 7.711e-03, 6.750e+03 ,1, 6.006e-02, 3.133e+04 ,1.830e+00 ,3.513e+05] #dict_to_list(dict_model_thermo) #
 
-model_hill_shaky.model(params_list=params_list, I_conc=meta_dict['WT'].S)
-fig, ((axS,axR),(axH, axO)) = plt.subplots(2,2)
-I_concs = meta_dict['WT'].S
-S = model_thermodynamic.model(params_list=params_list, I_conc=meta_dict['WT'].S)[0]
-R = model_thermodynamic.model(params_list=params_list, I_conc=meta_dict['WT'].S)[1]
-H = model_thermodynamic.model(params_list=params_list, I_conc=meta_dict['WT'].S)[2]
-O = model_thermodynamic.model(params_list=params_list, I_conc=meta_dict['WT'].S)[3]
-axS.plot(I_concs,S)
-axR.plot(I_concs,R)
-axH.plot(I_concs,H)
-axO.plot(I_concs,O)
-for ax in fig.get_axes():
-    ax.set_yscale('log')
-    ax.set_xscale('log')
-#%%
+# model_hill_shaky.model(params_list=params_list, I_conc=meta_dict['WT'].S)
+# fig, ((axS,axR),(axH, axO)) = plt.subplots(2,2)
+# I_concs = meta_dict['WT'].S
+# S = model_thermodynamic.model(params_list=params_list, I_conc=meta_dict['WT'].S)[0]
+# R = model_thermodynamic.model(params_list=params_list, I_conc=meta_dict['WT'].S)[1]
+# H = model_thermodynamic.model(params_list=params_list, I_conc=meta_dict['WT'].S)[2]
+# O = model_thermodynamic.model(params_list=params_list, I_conc=meta_dict['WT'].S)[3]
+# axS.plot(I_concs,S)
+# axR.plot(I_concs,R)
+# axH.plot(I_concs,H)
+# axO.plot(I_concs,O)
+# for ax in fig.get_axes():
+#     ax.set_yscale('log')
+#     ax.set_xscale('log')
+# #%%
