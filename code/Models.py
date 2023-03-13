@@ -215,12 +215,12 @@ class model_thermodynamic:
         Regulator /= 1+P_r+C_pt*P_r*K_t*Sensor**2+K_t*Sensor**2
         Regulator *= A_r
 
-        Output_half = P_r+C_pl*K_l*P_r*Sensor**2
-        Output_half /= 1+P_r+C_pl*K_l*P_r*Sensor**2+K_l*Sensor**2
+        Output_half = P_o+C_pl*K_l*P_o*Sensor**2
+        Output_half /= 1+P_o+C_pl*K_l*P_o*Sensor**2+K_l*Sensor**2
         Output_half *= A_o
         
-        Output = P_r+C_pl*K_l*P_r*(Sensor+Regulator)**2
-        Output /= 1+P_r+C_pl*K_l*P_r*(Sensor+Regulator)**2+K_l*(Sensor+Regulator)**2
+        Output = P_o+C_pl*K_l*P_o*(Sensor+Regulator)**2
+        Output /= 1+P_o+C_pl*K_l*P_o*(Sensor+Regulator)**2+K_l*(Sensor+Regulator)**2
         Output *= A_o
         Output *= F_o
 

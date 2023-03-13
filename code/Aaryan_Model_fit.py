@@ -95,7 +95,7 @@ params_list_comp=[4.20504769e+02, 1.47356534e+04, 1.67916264e+03, 1.27219156e+00
 
 params_list_comp=get_WT_params(model_type=func,start_guess=params_list_comp,n_iter=1e5,method="Nelder-Mead",params_dict=params_dict_comp,custom_settings=[[1e-5,1e-5,1e-5],[None,None,None],["Deg","A_s","C_o"]],tol=1)
 
-#%%
+#%%QQ
 #%%
 #getting wt params
 func=model_hill_shaky.model
