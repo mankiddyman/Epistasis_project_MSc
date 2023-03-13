@@ -217,12 +217,12 @@ class model_thermodynamic:
         Regulator /= 1+P_r+C_pt*P_r*K_t*Sensor**2+K_t*Sensor**2
         Regulator *= A_r
 
-        Output_half = P_r+C_pl*K_l*P_r*Sensor**2
-        Output_half /= 1+P_r+C_pl*K_l*P_r*Sensor**2+K_l*Sensor**2
+        Output_half = P_o+C_pl*K_l*P_o*Sensor**2
+        Output_half /= 1+P_o+C_pl*K_l*P_o*Sensor**2+K_l*Sensor**2
         Output_half *= A_o
         
-        Output = P_r+C_pl*K_l*P_r*(Sensor+Regulator)**2
-        Output /= 1+P_r+C_pl*K_l*P_r*(Sensor+Regulator)**2+K_l*(Sensor+Regulator)**2
+        Output = P_o+C_pl*K_l*P_o*(Sensor+Regulator)**2
+        Output /= 1+P_o+C_pl*K_l*P_o*(Sensor+Regulator)**2+K_l*(Sensor+Regulator)**2
         Output *= A_o
         Output *= F_o
 
@@ -278,6 +278,7 @@ class model_hill_shaky:
             S_prod = A_s+B_s*np.power(C_s*conc,N_s)
             S_prod /= 1+np.power(C_s*conc,N_s)
             #change in S concentration w.r.t. time, deg for degredation rate
+<<<<<<< HEAD
             dSdt = S_prod - S
             return dSdt
         
@@ -307,6 +308,32 @@ class model_hill_shaky:
             Output = np.append(Output, O)
         return Sensor,Regulator , Output_half, Output
     
+=======
+                dSdt = S_prod - S
+
+                R_prod = B_r/(1+np.power(C_r*S,N_r))
+                R_prod += A_r
+
+                dRdt = R_prod - R
+
+                O_half_prod = B_h/(1+np.power(C_h*S,N_o))
+                O_half_prod += A_h
+
+                dHdt = O_half_prod - H
+
+                O_prod = A_o*A_h + B_o*B_h/(1+np.power(C_h*(S+C_o*R),N_o))
+                O_prod*=F_o #should Fo scale degredation as well?
+
+                dOdt = O_prod - O
+                return np.array([dSdt, dRdt, dHdt, dOdt])
+
+            SRHO = odeint(ODEs, SRHO0, t)
+            Sensor = np.append(Sensor, SRHO[0,0])
+            Regulator = np.append(Regulator, SRHO[0,1])
+            Output_half = np.append(Output_half, SRHO[0,2])
+            Output = np.append(Output, SRHO[0,3])
+        return np.array(Sensor),np.array(Regulator) ,np.array(Output_half), np.array(Output)
+>>>>>>> 46b528f25f19793b628971291c8fa2e5962d5f59
     @staticmethod
     def model_2(params_list:list,I_conc):
         #this model 
@@ -555,6 +582,7 @@ def dict_to_list(params_dict,return_keys=False):
     elif return_keys==False:
         a=[list(i.values()) for i in list(params_dict.values())]
         return list(chain.from_iterable(a))
+<<<<<<< HEAD
 #%%
 def test():
     dict_model_thermo={"sen_params":{"P_b":1,"P_u":1,"K_12":1,"C_pa":1,"A_s":1},"reg_params":{"P_r":1,"C_pt":1,"K_t":1,"A_r":1},"out_h_params":{},"out_params":{"P_o":1,"C_pl":1, "K_l":1,"A_o":1},"free_params":{},"fixed_params":{"F_o":1}}
@@ -576,3 +604,25 @@ def test():
         ax.set_yscale('log')
         ax.set_xscale('log')
 #%%
+=======
+# #%%
+# dict_model_thermo={"sen_params":{"P_b":1,"P_u":1,"K_12":1,"C_pa":1,"A_s":1},"reg_params":{"P_r":1,"C_pt":1,"K_t":1,"A_r":1},"out_h_params":{},"out_params":{"P_o":1,"C_pl":1, "K_l":1,"A_o":1},"free_params":{},"fixed_params":{"F_o":1}}
+
+# params_list =  [9.06e-02,3e2, 3.48e+01, 9.00e-10, 1.050e+04, 1,3e-2, 7.711e-03, 6.750e+03 ,1, 6.006e-02, 3.133e+04 ,1.830e+00 ,3.513e+05] #dict_to_list(dict_model_thermo) #
+
+# model_hill_shaky.model(params_list=params_list, I_conc=meta_dict['WT'].S)
+# fig, ((axS,axR),(axH, axO)) = plt.subplots(2,2)
+# I_concs = meta_dict['WT'].S
+# S = model_thermodynamic.model(params_list=params_list, I_conc=meta_dict['WT'].S)[0]
+# R = model_thermodynamic.model(params_list=params_list, I_conc=meta_dict['WT'].S)[1]
+# H = model_thermodynamic.model(params_list=params_list, I_conc=meta_dict['WT'].S)[2]
+# O = model_thermodynamic.model(params_list=params_list, I_conc=meta_dict['WT'].S)[3]
+# axS.plot(I_concs,S)
+# axR.plot(I_concs,R)
+# axH.plot(I_concs,H)
+# axO.plot(I_concs,O)
+# for ax in fig.get_axes():
+#     ax.set_yscale('log')
+#     ax.set_xscale('log')
+# #%%
+>>>>>>> 46b528f25f19793b628971291c8fa2e5962d5f59

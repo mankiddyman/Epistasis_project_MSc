@@ -84,6 +84,18 @@ params_therm_list=get_WT_params(model_type=func,start_guess=params_therm_list,n_
 params_therm_list=[1e-5]*12
 params_therm_list=get_WT_params(model_type=func,start_guess=params_therm_list,n_iter=1e5,method="Nelder-Mead",params_dict=params_therm_dict,custom_settings=[[1,0,0],[None,1,1],["C_pa","C_pt","C_pl"]],tol=0.0011)
 
+#competition model
+#%%
+model_comp=CompDeg(params_list=[1]*15,I_conc=meta_dict["WT"].S)
+func=model_comp.model_2
+params_dict_comp=model_comp.example_dict_model_2
+params_list_comp=dict_to_list(params_dict_comp)
+params_list_comp=[4.20504769e+02, 1.47356534e+04, 1.67916264e+03, 1.27219156e+00, 23, 2.36888092e+04, 1.03576041e-02 ,9.10072254e-01, 1.67389421e+00, 8.95345e+01, 2.65769862e+00 ,1.37995266e+00 ,23612.8375e+00, 5, 100]
+
+
+params_list_comp=get_WT_params(model_type=func,start_guess=params_list_comp,n_iter=1e5,method="Nelder-Mead",params_dict=params_dict_comp,custom_settings=[[1e-5,1e-5,1e-5],[None,None,None],["Deg","A_s","C_o"]],tol=1)
+
+#%%QQ
 #%%
 #getting wt params
 func=model_hill_shaky.model
