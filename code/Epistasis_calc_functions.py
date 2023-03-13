@@ -18,11 +18,9 @@ I_conc_np = np.array(list(I_conc.values()))
 I_conc_np[1] = 0.000195 #medium Inducer concentration is rounded in df_S, want more accurate value (0.000195) when fitting using a model
 
 #get parameter values for model from here
-def get_params(model = 'observed'):
-    old_model_name = str(model).split(" ")[0]
-    new_model_name = old_model_name.removeprefix('<__main__.')
-    model_name = new_model_name
-    df_fits = pd.read_excel('../data/'+model_name+'_SM_params.xlsx').rename(columns={'Unnamed: 0': 'mutant'})
+def get_params(model):
+    model_name = model.__qualname__
+    df_fits = pd.read_excel('../results/'+model_name+'.modelSM_params.xlsx').rename(columns={'Unnamed: 0': 'mutant'})
     del df_fits["time_elapsed_s"]
     return df_fits
 
@@ -185,7 +183,7 @@ def get_Eps(model='observed'):
     return df_Eps
 
 #now to compare inducer dependent epistasis for a given model
-def IndCompare(df_Eps, model = 'observed'):
+def IndCompare(df_Eps):
     df_Ep_concCompare = df_Eps.loc[(df_Eps['inducer level'] == 'low'), ['genotype category', 'Sig_Epistasis']].copy().reset_index(drop = True)
 
     #inspect inducer dependence epistases given a model
@@ -203,7 +201,7 @@ def Eps_toExcel(model= 'observed'):
     df_indEps = IndCompare(df_Eps, model)
     #export to a spreadsheet
     if model != 'observed':
-        model = str(str(model).split(" ")[1])
-    df_Eps.to_excel('../results/Eps_'+model+'.xlsx')
-    df_indEps.to_excel('../results/indEps_'+model+'.xlsx')
+        model_name = model.__qualname__
+    df_Eps.to_excel('../results/Eps_'+model_name+'.xlsx')
+    df_indEps.to_excel('../results/indEps_'+model_name+'.xlsx')
     return df_Eps, df_indEps

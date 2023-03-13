@@ -158,6 +158,7 @@ class model_hill:
 #%%
     
 class model_thermodynamic:
+    example_dict={"sen_params":{"P_b":1,"P_u":1,"K_12":1,"C_pa":1,"A_s":1},"reg_params":{"P_r":1,"C_pt":1,"K_t":1,"A_r":1},"out_h_params":{},"out_params":{"P_o":1,"C_pl":1, "K_l":1,"A_o":1},"free_params":{},"fixed_params":{"F_o":1}}
     def __init__(self,params_list:list,I_conc):
         self.params_list=params_list
         self.I_conc=I_conc
@@ -180,6 +181,7 @@ class model_thermodynamic:
         if len(params_list)!=correct_length:
             print("params_list of incorrect length should be of length ",correct_length)
             return 0
+
         # a_s, a_r, a_o represent the production rates divided by the degradation rates
         # I represents arabinose
         # P represents concentration of polymerase
@@ -228,12 +230,12 @@ class model_thermodynamic:
 #%%
 
 
-
 class model_hill_shaky:
     def __init__(self,params_list:list,I_conc):
         self.params_list=params_list
         self.I_conc=I_conc
-        self.example_dict={"sen_params":{"A_s":1,"B_s":1,"C_s":1,"N_s":1},"reg_params":{"A_r":1,"B_r":1,"C_r":1,"N_r":1},"out_h_params":{"A_h":1,"B_h":1,"C_h":1},"out_params":{"A_o":1,"B_o":1,"C_o":1,"N_o":1},"free_params":{"F_o":1}}
+        self.example_dict={"sen_params":{"A_s":500,"B_s":25000,"C_s":1200,"N_s":1},"reg_params":{"A_r":3000,"B_r":10000,"C_r":0.00001,"N_r":0.01},"out_h_params":{},"out_params":{"A_o":1,"B_o":1,"C_o":1,"N_o":1},"free_params":{"F_o":1}}
+        #params_list = dict_to_list(example_dict)
         self.correct_length=16
     @staticmethod
     def model(params_list:list,I_conc):
@@ -241,10 +243,7 @@ class model_hill_shaky:
         #R is subscript for parameters corresponding to Regulator
         #H is subscript for parameters corresponding to the half network I->S -| O
         #O is subscript for parameters corresponding to Output
-        
         #creates variables described in params_dict 
-
-        #sensor
         A_s=params_list[0]
         B_s=params_list[1]
         C_s=params_list[2]
@@ -254,67 +253,60 @@ class model_hill_shaky:
         B_r=params_list[5]
         C_r=params_list[6]
         N_r=params_list[7]
-        #out_half
-        A_h=params_list[8]
-        B_h=params_list[9]
-        C_h=params_list[10]
         #output
-        A_o=params_list[11]
-        B_o=params_list[12]
-        C_o=params_list[13]
-        N_o=params_list[14]
+        A_o=params_list[8]
+        B_o=params_list[9]
+        C_o=params_list[10]
+        N_o=params_list[11]
         #free
-        F_o=params_list[15]
+        F_o=params_list[12]
         
         Sensor = np.array([])
         Regulator = np.array([])
         Output_half = np.array([])
         Output = np.array([])
         #initial conditions assumed as steady state with no inducer present
-        S0 = A_r
+        S0 = A_s 
         R0 = B_r/(1+np.power(C_r*S0,N_r))+ A_r
-        H0 = B_h/(1+np.power(C_h*S0,N_o))+A_h
-        O0 = A_o*A_h + B_o*B_h/(1+np.power(C_h*(S0+C_o*R0),N_o))*F_o
-        SRHO0 = np.array([S0,R0,H0,O0])
+        H0 = B_o/(1+np.power(C_o*S0,N_o))+A_o
+        O0 = (A_o + B_o/(1+np.power(C_o*(S0+R0),N_o)))**F_o
         #arbitrary time point to integrate ODE up to
-        t = np.array([1])
+        t = np.linspace(0,1,2)
         #define system of ODEs to be solved by odeint, for a each inducer concentration
-        for conc in I_conc:
-            def ODEs(SRHO):
-            #for set in params_dict.values():
-            #    locals().update(set) 
-                S = SRHO[0]
-                R = SRHO[1]
-                H = SRHO[2]
-                O = SRHO[3]
+        def ODE_S(S, t, conc):
             #S for sensor concentration at time t, prod for production
-                S_prod = A_s+B_s*np.power(C_s*conc,N_s)
-                S_prod /= 1+np.power(C_s*conc,N_s)
+            S_prod = A_s+B_s*np.power(C_s*conc,N_s)
+            S_prod /= 1+np.power(C_s*conc,N_s)
             #change in S concentration w.r.t. time, deg for degredation rate
             dSdt = S_prod - S
-
-            R_prod = B_r/(1+np.power(C_r*S,N_r))
-            R_prod += A_r
-
+            return dSdt
+        
+        def ODE_R(R,t, S):
+            R_prod = A_r*(1+B_r/(1+np.power(C_r*S,N_r)))
             dRdt = R_prod - R
-
-            O_half_prod = B_h/(1+np.power(C_h*S,N_o))
-            O_half_prod += A_h
-
-            dHdt = O_half_prod - H
-
-            O_prod = A_o*A_h + B_o*B_h/(1+np.power(C_h*(S+C_o*R),N_o))
-            O_prod*=F_o #should Fo scale degredation as well?
-
+            return dRdt
+        
+        def ODE_H(O,t, S):
+            O_prod = A_o + B_o/(1+np.power(C_o*(S),N_o))
             dOdt = O_prod - O
-                return np.array([dSdt, dRdt, dHdt, dOdt])
+            return dOdt
+        
+        def ODE_O(O,t, S_R):
+            O_prod = A_o + B_o/(1+np.power(C_o*(S_R),N_o))
+            dOdt = O_prod - (O)**F_o
+            return dOdt
 
-            SRHO = odeint(ODEs, SRHO0, t)
-            Sensor = np.append(Sensor, SRHO[0,0])
-            Regulator = np.append(Regulator, SRHO[0,1])
-            Output_half = np.append(Output_half, SRHO[0,2])
-            Output = np.append(Output, SRHO[0,3])
-        return np.array(Sensor),np.array(Regulator) ,np.array(Output_half), np.array(Output)
+        for conc in I_conc:
+            S = odeint(ODE_S, S0, t, args = (conc,))[-1]
+            Sensor = np.append(Sensor, S)
+            R = odeint(ODE_R, R0, t, args = (S,))[-1]
+            Regulator = np.append(Regulator, R)
+            H = odeint(ODE_H, H0, t, args = (S,))[-1]
+            Output_half = np.append(Output_half, H)
+            O = odeint(ODE_O, O0, t, args = (S+R,))[-1]
+            Output = np.append(Output, O)
+        return Sensor,Regulator , Output_half, Output
+    
     @staticmethod
     def model_2(params_list:list,I_conc):
         #this model 
@@ -564,22 +556,23 @@ def dict_to_list(params_dict,return_keys=False):
         a=[list(i.values()) for i in list(params_dict.values())]
         return list(chain.from_iterable(a))
 #%%
-dict_model_thermo={"sen_params":{"P_b":1,"P_u":1,"K_12":1,"C_pa":1,"A_s":1},"reg_params":{"P_r":1,"C_pt":1,"K_t":1,"A_r":1},"out_h_params":{},"out_params":{"P_o":1,"C_pl":1, "K_l":1,"A_o":1},"free_params":{},"fixed_params":{"F_o":1}}
+def test():
+    dict_model_thermo={"sen_params":{"P_b":1,"P_u":1,"K_12":1,"C_pa":1,"A_s":1},"reg_params":{"P_r":1,"C_pt":1,"K_t":1,"A_r":1},"out_h_params":{},"out_params":{"P_o":1,"C_pl":1, "K_l":1,"A_o":1},"free_params":{},"fixed_params":{"F_o":1}}
 
-params_list =  [9.06e-02,3e2, 3.48e+01, 9.00e-10, 1.050e+04, 1,3e-2, 7.711e-03, 6.750e+03 ,1, 6.006e-02, 3.133e+04 ,1.830e+00 ,3.513e+05] #dict_to_list(dict_model_thermo) #
+    params_list =  [9.06e-02,3e2, 3.48e+01, 9.00e-10, 1.050e+04, 1,3e-2, 7.711e-03, 6.750e+03 ,1, 6.006e-02, 3.133e+04 ,1.830e+00 ,3.513e+05] #dict_to_list(dict_model_thermo) #
 
-model_hill_shaky.model(params_list=params_list, I_conc=meta_dict['WT'].S)
-fig, ((axS,axR),(axH, axO)) = plt.subplots(2,2)
-I_concs = meta_dict['WT'].S
-S = model_thermodynamic.model(params_list=params_list, I_conc=meta_dict['WT'].S)[0]
-R = model_thermodynamic.model(params_list=params_list, I_conc=meta_dict['WT'].S)[1]
-H = model_thermodynamic.model(params_list=params_list, I_conc=meta_dict['WT'].S)[2]
-O = model_thermodynamic.model(params_list=params_list, I_conc=meta_dict['WT'].S)[3]
-axS.plot(I_concs,S)
-axR.plot(I_concs,R)
-axH.plot(I_concs,H)
-axO.plot(I_concs,O)
-for ax in fig.get_axes():
-    ax.set_yscale('log')
-    ax.set_xscale('log')
+    model_hill_shaky.model(params_list=params_list, I_conc=meta_dict['WT'].S)
+    fig, ((axS,axR),(axH, axO)) = plt.subplots(2,2)
+    I_concs = meta_dict['WT'].S
+    S = model_thermodynamic.model(params_list=params_list, I_conc=meta_dict['WT'].S)[0]
+    R = model_thermodynamic.model(params_list=params_list, I_conc=meta_dict['WT'].S)[1]
+    H = model_thermodynamic.model(params_list=params_list, I_conc=meta_dict['WT'].S)[2]
+    O = model_thermodynamic.model(params_list=params_list, I_conc=meta_dict['WT'].S)[3]
+    axS.plot(I_concs,S)
+    axR.plot(I_concs,R)
+    axH.plot(I_concs,H)
+    axO.plot(I_concs,O)
+    for ax in fig.get_axes():
+        ax.set_yscale('log')
+        ax.set_xscale('log')
 #%%
