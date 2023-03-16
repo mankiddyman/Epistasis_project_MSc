@@ -89,27 +89,74 @@ def get_histograms(eps1, eps2, eps3, n, b): # x, y
     #%%
     # RSS 
     
-    #%%
-    # testing lad epistasis values 
-    # def 
-    #df1 = pd.read_excel('../data/Source_Data.xlsx', 'Figure 2', usecols="J")
-    #df2 = df1.drop([0])
-    #df3 = df2.dropna()
-    #eps_rub = df3['Unnamed: 9']
-    def compare_df(df1, df2):
-        new_df = pd.DataFrame(list(zip(df1, df2)),columns =['old', 'new'])
-        new_df['different'] = np.where(abs((new_df['old']/new_df['new'])-1)>0.2, 'yes', '-')
-        return new_df
-    def get_epsInfo(eps, df):
-        # find row 
-        # in that row access genotype category, genotype, inducer level
-        # return dictionary
-        i = np.isclose(df['Ep'], eps).argmax()
-        output = []
-        gen_cat = df.iloc[i]['genotype category']
-        gen = df.iloc[i]['genotype']
-        ind_lvl = df.iloc[i]['inducer level']
-        output.append(gen_cat)
-        output.append(gen)
-        output.append(ind_lvl)
-        return output
+#%%
+# testing lad epistasis values 
+# def 
+#df1 = pd.read_excel('../data/Source_Data.xlsx', 'Figure 2', usecols="J")
+#df2 = df1.drop([0])
+#df3 = df2.dropna()
+#eps_rub = df3['Unnamed: 9']
+def compare_df(df1, df2):
+    new_df = pd.DataFrame(list(zip(df1, df2)),columns =['old', 'new'])
+    new_df['different'] = np.where(abs((new_df['old']/new_df['new'])-1)>0.2, 'yes', '-')
+    return new_df
+def get_epsInfo(eps, df):
+    # find row 
+    # in that row access genotype category, genotype, inducer level
+    # return dictionary
+    i = np.isclose(df['Ep'], eps).argmax()
+    output = []
+    gen_cat = df.iloc[i]['genotype category']
+    gen = df.iloc[i]['genotype']
+    ind_lvl = df.iloc[i]['inducer level']
+    output.append(gen_cat)
+    output.append(gen)
+    output.append(ind_lvl)
+    return output
+#%%
+# to be used in Figure 3
+def get_boxplot(data): 
+    df = data
+    eps = list(df['Epistasis'])
+    gen = list(df['Genotype'])
+    if gen[0].find('O') != -1:
+        x = ['O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O7', 'O8', 'O9', 'O10']
+    elif gen[0].find('S') != -1:
+        x = ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S10']
+    elif gen[0].find('R') != -1:
+        x = ['R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7', 'R8', 'R9', 'R10']
+    x_ticks = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    # list instead of df
+    gen1 = eps[0:360]
+    gen2 = eps[360:720]
+    gen3 = eps[720:1080]
+    gen4 = eps[1080:1440]
+    gen5 = eps[1440:1800]
+    gen6 = eps[1800:2160]
+    gen7 = eps[2160:2520]
+    gen8 = eps[2520:2880]
+    gen9 = eps[2880:3240]
+    gen10 = eps[3240:3600]
+    new_df = [gen1,gen2,gen3,gen4,gen5,gen6,gen7,gen8,gen9,gen10]
+    a = plt.boxplot(new_df, showfliers=False, patch_artist=False)
+    l, r = plt.xlim()
+    plt.hlines(y= 0, xmin= l, xmax= r, linestyles='dashed', linewidth = 1, colors='k')
+    for i in range(10):
+        y1 = np.array(new_df[i][0:60])
+        y2 = np.array(new_df[i][60:360])
+        x1 = np.array(np.random.normal(1+i, 0.04, size=len(y1)))
+        x2 = np.array(np.random.normal(1+i, 0.04, size=len(y2)))
+        plt.scatter(x1, y1, color = 'red', marker='o', alpha=0.2, linewidth = 1.5, edgecolors='black')
+        plt.scatter(x2, y2, color = 'blue', marker='o', alpha=0.2, linewidth = 1.5,edgecolors='black')
+    plt.xticks(x_ticks, x)
+       
+def get_allBoxplots(data1, data2, data3):
+   fig = plt.figure()
+   plt.subplot(3,1,1)
+   get_boxplot(data1)
+   plt.subplot(3,1,2)
+   get_boxplot(data2)
+   plt.ylabel('Epistasis', fontsize=10)
+   plt.subplot(3,1,3)
+   get_boxplot(data3)
+   plt.xlabel('Genotypes', fontsize=10)
