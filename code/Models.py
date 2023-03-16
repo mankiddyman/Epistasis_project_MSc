@@ -108,7 +108,6 @@ class model_hill:
         Output*=F_o
         #I wonder why we describe different repression strengths for repression by LacI_regulator and LacI_sensor?
         return Sensor,Regulator,Output_half, Output
-    """
     @staticmethod    
     def model(params_list,I_conc): #reformulated so that output half and output are same parameters with F_o to scale
         correct_length=13

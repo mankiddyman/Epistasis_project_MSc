@@ -19,7 +19,7 @@ def Figures(model= 'observed'):
     #group df and calculate mean and varience for each mutation, grouped by inducer conc, node and pairwise/triplet category
     df_Eps = pd.concat([pd.concat([df1, df2], axis = 0), df3], axis = 0).reset_index().drop('index', axis = 1)
     df_Eps['node'] = np.where(df_Eps['Genotype'].str.startswith('S'), 'Sensor', np.where(df_Eps['Genotype'].str.startswith('O'), 'Output', 'Regulator'))
-    #reorder categories; e.g. want low then med then high
+    #reorder categories; want low then med then high on the plot
     node_order = ['Sensor', 'Regulator', 'Output']
     LMH_order = ['low', 'medium', 'high']
     #blank dataframe to fill with reordered values
@@ -70,7 +70,7 @@ def Figures(model= 'observed'):
 
     #defina a plotting function
     def Plotter(ax, names, vals, xs, bar_pos, cols,isMean = False, triple = False):
-        ax.boxplot(vals,labels=None, showfliers = False, positions = bar_pos, meanline = True, whis = 0,showcaps = False,  medianprops= {'c':'black'})
+        #ax.boxplot(vals,labels=None, showfliers = False, positions = bar_pos, meanline = True, whis = 0,showcaps = False,  medianprops= {'c':'black'})
         if triple == True:
             title = 'triple'
             title_col = 'orange'
@@ -80,7 +80,7 @@ def Figures(model= 'observed'):
         ax.set_title(title, c = title_col) 
         for x, val, col in zip(xs, vals, cols):
             ax.scatter(x, val, alpha=0.4, c = col)
-            #ax.errorbar(np.mean(x), np.mean(val), yerr = np.std(val), fmt = '_', c = 'black', barsabove = False)
+            ax.errorbar(np.mean(x) , np.mean(val), np.std(val), linestyle='None', fmt='_', c = 'k', elinewidth = 1.5, capsize = 1.5)
         if isMean == True:
             ax.axhline(zorder = 0.5, c = 'lightgrey', linestyle = '--')
             ax.set_ylim(min(df_means.Epistasis)*1.05, max(df_means.Epistasis)*1.05)
@@ -134,7 +134,18 @@ def indComp(model='observed'):
     df_peak = df[(df['Ep_low'] < df['Ep_medium']) & (df['Ep_medium'] > df['Ep_high'])]
     df_trough = df[(df['Ep_low'] > df['Ep_medium']) & (df['Ep_medium'] < df['Ep_high'])]
     #totals:
-    n, n_up, n_down, n_peak, n_trough  = len(df),len(df_up), len(df_down), len(df_peak), len(df_trough)
+    n,n_pair, n_triplet = len(df),len(df[df['genotype category']=='pairwise']), len(df[df['genotype category']=='triplet'])
+
+    n_up = [len(df_up), len(df_up[df_up['genotype category']=='pairwise']), len(df_up[df_up['genotype category']=='triplet'])]
+
+    n_down = [len(df_down), len(df_down[df_down['genotype category']=='pairwise']), len(df_down[df_down['genotype category']=='triplet'])]
+
+    n_peak = [len(df_peak), len(df_peak[df_peak['genotype category']=='pairwise']), len(df_peak[df_peak['genotype category']=='triplet'])]
+    n_trough = [len(df_trough), len(df_trough[df_trough['genotype category']=='pairwise']), len(df_trough[df_trough['genotype category']=='triplet'])]
+
+    # % calculator
+    def percent(x,n):
+        return np.round(x*100/n,0)
 
     #now plot a scatter plot of med-low vs high-med
     x = df.Ep_medium - df.Ep_low
@@ -154,13 +165,27 @@ def indComp(model='observed'):
     ax.set_title('inducer dependant Epistasis for '+ str(model)+' data')
 
     #proportins mutants in each quadrant
-    ax.text(-xlim*0.8, -ylim*0.8, str(np.round(n_down*100/n, 0))+'%', verticalalignment='center', horizontalalignment='center', size = 20)
-    ax.text(xlim*0.8, -ylim*0.8, str(np.round(n_peak*100/n, 0))+'%', verticalalignment='center', horizontalalignment='center', size = 20)
-    ax.text(-xlim*0.8, ylim*0.8, str(np.round(n_trough*100/n, 0))+'%', verticalalignment='center', horizontalalignment='center', size = 20, style = 'oblique')
-    ax.text(xlim*0.8, ylim*0.8, str(np.round(n_up*100/n, 0))+'%', verticalalignment='center', horizontalalignment='center', size = 20)
+    def annotate(direction):
+        if direction == n_up:
+            a, b, c = 1, 1, 0.7 #a & b position %s horizontally & vertically, c adjusts pair/trip %s
+        elif direction == n_down:
+            a, b, c = -1,-1, 0.9
+        elif direction == n_peak:
+            a, b, c = 1,-1, 0.9
+        else:
+            a, b, c = -1,1,0.7 
+        x_pos, y_pos = a*xlim,b*ylim
+        ax.text(x_pos*0.8,y_pos*0.8 , str(percent(direction[0],n))+'%', verticalalignment='center', horizontalalignment='center', size = 20)
+        ax.text(x_pos*0.8, y_pos*c, str(percent(direction[1],n_pair))+'%', verticalalignment='top', horizontalalignment='right', size = 9, c = 'purple')
+        ax.text(x_pos*0.8, y_pos*c, str(percent(direction[2],n_triplet))+'%', verticalalignment='top', horizontalalignment='left', size = 9, c = 'orange')
+    annotate(n_up)
+    annotate(n_down)
+    annotate(n_peak)
+    annotate(n_trough)
     #and a basic legend
-    ax.text(-xlim, -ylim*1.25, 'Pairwise', verticalalignment='top', horizontalalignment='left', size = 15, c= 'purple')
-    ax.text(-xlim, -ylim*1.36, 'Triple', verticalalignment='top', horizontalalignment='left', size = 15, c= 'orange')
+    ax.text(-xlim, -ylim*1.25, 'Total, n = '+str(n), verticalalignment='top', horizontalalignment='left', size = 15, c= 'k')
+    ax.text(-xlim, -ylim*1.36, 'Pairwise, n = '+str(n_pair), verticalalignment='top', horizontalalignment='left', size = 15, c= 'purple')
+    ax.text(-xlim, -ylim*1.46, 'Triple, n = '+str(n_triplet), verticalalignment='top', horizontalalignment='left', size = 15, c= 'orange')
     plt.show()
 
     #now to get totals and proportions for more specific plots
