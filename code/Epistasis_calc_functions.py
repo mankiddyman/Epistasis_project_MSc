@@ -1,3 +1,4 @@
+#%%
 import pandas as pd
 import numpy as np
 import re
@@ -17,6 +18,7 @@ I_conc = {'low':0.0, 'medium': 0.0002, 'high':0.2}
 I_conc_np = np.array(list(I_conc.values()))
 I_conc_np[1] = 0.000195 #medium Inducer concentration is rounded in df_S, want more accurate value (0.000195) when fitting using a model
 
+#%%
 #get parameter values for model from here
 def get_params(model):
     model_name = model.__qualname__
@@ -154,7 +156,7 @@ def Epistasis(mutants:list,df_fits:pd.DataFrame, model = 'observed'):
     inducer_level = ['low', 'medium', 'high']
     return Epsilon, p_vals, G_mean, G_log_mean, genotype_category, genotype, inducer_level
 
-
+#%%
 #calculate epistasis for all double mutants - returns dataframe with Epistasis mean and PValue, and GFP output under a model or observed in lab, and G_logadd for each pairwise and triple mutant  
 def get_Eps(model='observed'):
     df_Eps = pd.DataFrame({'Ep': [],'Ep_pVal':[],'G': [], 'G_log': [] ,'genotype category': [],'genotype': [], 'inducer level': []})

@@ -33,11 +33,12 @@ def model_leaky(I_conc,A_s,B_s,C_s,N_s,L_r,A_r,C_r,N_r,L_o,A_o,C_o,N_o):
 #params_dict={"sen_params":{"As":1,"Bs":1,"Cs":1,"Ns":1},"reg_params":{"Ar":1,"Br":1,"Cr":1,"Nr":1},"out_h_params":{"Ah":1,"Bh":1,"Ch":1},"out_params":{"Fo":1,"Ao":1,"Bo":1,"Co":1,"No":1}}
 #%%
 class model_hill:
+    example_dict={"sen_params":{"A_s":1,"B_s":1,"C_s":1,"N_s":1},"reg_params":{"A_r":1,"B_r":1,"C_r":1,"N_r":1},"out_h_params":{},"out_params":{"A_o":1,"B_o":1,"C_o":1,"N_o":1,"F_o":1},"free_params":{}}
     def __init__(self,params_list:list,I_conc):
         self.params_list=params_list
         self.I_conc=I_conc
-        self.example_dict_model_1={"sen_params":{"A_s":1,"B_s":1,"C_s":1,"N_s":1},"reg_params":{"A_r":1,"B_r":1,"C_r":1,"N_r":1},"out_h_params":{"A_h":1,"B_h":1,"C_h":1},"out_params":{"A_o":1,"B_o":1,"C_o":1,"N_o":1},"free_params":{"F_o":1}}
-        self.example_dict_model_2={"sen_params":{"A_s":1,"B_s":1,"C_s":1,"N_s":1},"reg_params":{"A_r":1,"B_r":1,"C_r":1,"N_r":1},"out_h_params":{},"out_params":{"A_o":1,"B_o":1,"C_o":1,"N_o":1,"F_o":1},"free_params":{}}
+        #self.example_dict_model_1={"sen_params":{"A_s":1,"B_s":1,"C_s":1,"N_s":1},"reg_params":{"A_r":1,"B_r":1,"C_r":1,"N_r":1},"out_h_params":{"A_h":1,"B_h":1,"C_h":1},"out_params":{"A_o":1,"B_o":1,"C_o":1,"N_o":1},"free_params":{"F_o":1}}
+        self.example_dict={"sen_params":{"A_s":1,"B_s":1,"C_s":1,"N_s":1},"reg_params":{"A_r":1,"B_r":1,"C_r":1,"N_r":1},"out_h_params":{},"out_params":{"A_o":1,"B_o":1,"C_o":1,"N_o":1,"F_o":1},"free_params":{}}
         
         self.n_parameters_1=16
         self.n_parameters_2=13
@@ -107,7 +108,7 @@ class model_hill:
         Output*=F_o
         #I wonder why we describe different repression strengths for repression by LacI_regulator and LacI_sensor?
         return Sensor,Regulator,Output_half, Output
-
+    """
     @staticmethod    
     def model(params_list,I_conc): #reformulated so that output half and output are same parameters with F_o to scale
         correct_length=13
@@ -236,8 +237,7 @@ class model_hill_shaky:
     def __init__(self,params_list:list,I_conc):
         self.params_list=params_list
         self.I_conc=I_conc
-        self.example_dict={"sen_params":{"A_s":500,"B_s":25000,"C_s":1200,"N_s":1},"reg_params":{"A_r":3000,"B_r":10000,"C_r":0.00001,"N_r":0.01},"out_h_params":{},"out_params":{"A_o":1,"B_o":1,"C_o":1,"N_o":1},"free_params":{"F_o":1}}
-        #params_list = dict_to_list(example_dict)
+        self.example_dict={"sen_params":{"A_s":1,"B_s":1,"C_s":1,"N_s":1},"reg_params":{"A_r":1,"B_r":1,"C_r":1,"N_r":1},"out_h_params":{"A_h":1,"B_h":1,"C_h":1},"out_params":{"A_o":1,"B_o":1,"C_o":1,"N_o":1},"free_params":{"F_o":1}}
         self.correct_length=16
     @staticmethod
     def model(params_list:list,I_conc):
@@ -245,7 +245,10 @@ class model_hill_shaky:
         #R is subscript for parameters corresponding to Regulator
         #H is subscript for parameters corresponding to the half network I->S -| O
         #O is subscript for parameters corresponding to Output
+        
         #creates variables described in params_dict 
+
+        #sensor
         A_s=params_list[0]
         B_s=params_list[1]
         C_s=params_list[2]
@@ -255,30 +258,42 @@ class model_hill_shaky:
         B_r=params_list[5]
         C_r=params_list[6]
         N_r=params_list[7]
+        #out_half
+        A_h=params_list[8]
+        B_h=params_list[9]
+        C_h=params_list[10]
         #output
-        A_o=params_list[8]
-        B_o=params_list[9]
-        C_o=params_list[10]
-        N_o=params_list[11]
+        A_o=params_list[11]
+        B_o=params_list[12]
+        C_o=params_list[13]
+        N_o=params_list[14]
         #free
-        F_o=params_list[12]
+        F_o=params_list[15]
         
         Sensor = np.array([])
         Regulator = np.array([])
         Output_half = np.array([])
         Output = np.array([])
         #initial conditions assumed as steady state with no inducer present
-        S0 = A_s 
+        S0 = A_r
         R0 = B_r/(1+np.power(C_r*S0,N_r))+ A_r
-        H0 = B_o/(1+np.power(C_o*S0,N_o))+A_o
-        O0 = (A_o + B_o/(1+np.power(C_o*(S0+R0),N_o)))**F_o
+        H0 = B_h/(1+np.power(C_h*S0,N_o))+A_h
+        O0 = A_o*A_h + B_o*B_h/(1+np.power(C_h*(S0+C_o*R0),N_o))*F_o
+        SRHO0 = np.array([S0,R0,H0,O0])
         #arbitrary time point to integrate ODE up to
-        t = np.linspace(0,1,2)
+        t = np.array([1])
         #define system of ODEs to be solved by odeint, for a each inducer concentration
-        def ODE_S(S, t, conc):
+        for conc in I_conc:
+            def ODEs(SRHO):
+            #for set in params_dict.values():
+            #    locals().update(set) 
+                S = SRHO[0]
+                R = SRHO[1]
+                H = SRHO[2]
+                O = SRHO[3]
             #S for sensor concentration at time t, prod for production
-            S_prod = A_s+B_s*np.power(C_s*conc,N_s)
-            S_prod /= 1+np.power(C_s*conc,N_s)
+                S_prod = A_s+B_s*np.power(C_s*conc,N_s)
+                S_prod /= 1+np.power(C_s*conc,N_s)
             #change in S concentration w.r.t. time, deg for degredation rate
             dSdt = S_prod - S
             return dSdt
@@ -557,6 +572,7 @@ def dict_to_list(params_dict,return_keys=False):
     elif return_keys==False:
         a=[list(i.values()) for i in list(params_dict.values())]
         return list(chain.from_iterable(a))
+
 #%%
 def test():
     dict_model_thermo={"sen_params":{"P_b":1,"P_u":1,"K_12":1,"C_pa":1,"A_s":1},"reg_params":{"P_r":1,"C_pt":1,"K_t":1,"A_r":1},"out_h_params":{},"out_params":{"P_o":1,"C_pl":1, "K_l":1,"A_o":1},"free_params":{},"fixed_params":{"F_o":1}}
@@ -578,3 +594,26 @@ def test():
         ax.set_yscale('log')
         ax.set_xscale('log')
 #%%
+
+# #%%
+# dict_model_thermo={"sen_params":{"P_b":1,"P_u":1,"K_12":1,"C_pa":1,"A_s":1},"reg_params":{"P_r":1,"C_pt":1,"K_t":1,"A_r":1},"out_h_params":{},"out_params":{"P_o":1,"C_pl":1, "K_l":1,"A_o":1},"free_params":{},"fixed_params":{"F_o":1}}
+
+# params_list =  [9.06e-02,3e2, 3.48e+01, 9.00e-10, 1.050e+04, 1,3e-2, 7.711e-03, 6.750e+03 ,1, 6.006e-02, 3.133e+04 ,1.830e+00 ,3.513e+05] #dict_to_list(dict_model_thermo) #
+
+# model_hill_shaky.model(params_list=params_list, I_conc=meta_dict['WT'].S)
+# fig, ((axS,axR),(axH, axO)) = plt.subplots(2,2)
+# I_concs = meta_dict['WT'].S
+# S = model_thermodynamic.model(params_list=params_list, I_conc=meta_dict['WT'].S)[0]
+# R = model_thermodynamic.model(params_list=params_list, I_conc=meta_dict['WT'].S)[1]
+# H = model_thermodynamic.model(params_list=params_list, I_conc=meta_dict['WT'].S)[2]
+# O = model_thermodynamic.model(params_list=params_list, I_conc=meta_dict['WT'].S)[3]
+# axS.plot(I_concs,S)
+# axR.plot(I_concs,R)
+# axH.plot(I_concs,H)
+# axO.plot(I_concs,O)
+# for ax in fig.get_axes():
+#     ax.set_yscale('log')
+#     ax.set_xscale('log')
+# #%%
+
+
