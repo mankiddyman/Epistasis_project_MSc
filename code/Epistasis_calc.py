@@ -5,13 +5,25 @@ from Epistasis_calc_functions import *
 #This file is used to calculate epistasis for all double and triple mutants from observed and expected flourcsence at low, medium and high inducer concs
 
 #first, get the parameters calculated in model_fit.py
-df_fits = get_params(model_thermodynamic)
+#df_fits = get_params()
 ################################################################
 #run here to get excel spreadsheet of epistases for a given model a datframe called df_Eps, default is 'observed' which calculates epistasis w.r.t. lab data
 #file path for model called 'MODEL' will be '../results/Eps_MODEL.xlsx' 
 # & get a dataframe comparing inducer dependent epistasis from df_Ep
-df_Eps1, df_Ep_concCompare1 = Eps_toExcel(model_thermodynamic)
+df_Eps1 = Eps_toExcel()
 #################################################
+df = pd.read_excel('../data/Source_Data.xlsx', sheet_name='Figure 2')
+
+Eps_Rub = []
+Eps_Us = []
+for mut in df_Eps1['genotype']:
+    Eps_Rub.append(list(df['Unnamed: 9'][df['Unnamed: 0'].isin([mut])]))
+    Eps_Us.append(list(df_Eps1['Ep'][df_Eps1['genotype'].isin([mut])]))
+
+x = Eps_Rub
+y = Eps_Us
+import matplotlib.pyplot as plt
+plt.scatter(x,y)
 
 # AK
 # Mann-Whitney U test does not assume normality
