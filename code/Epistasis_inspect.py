@@ -6,7 +6,7 @@ from Chi_Figure3_func import Sort_mutants, convertDF
 
 
 Figures() #defined below
-indComp()
+indComp('model_hill')
 
 #%% use this to define the function "Figures"
 #Figures function gives figures of standard deviation and mean epistasis for mutants grouped by inducer conc and node mutated
@@ -187,6 +187,26 @@ def indComp(model='observed'):
     ax.text(-xlim, -ylim*1.36, 'Pairwise, n = '+str(n_pair), verticalalignment='top', horizontalalignment='left', size = 15, c= 'purple')
     ax.text(-xlim, -ylim*1.46, 'Triple, n = '+str(n_triplet), verticalalignment='top', horizontalalignment='left', size = 15, c= 'orange')
     plt.show()
+
+    x = np.array([1/6, 0.5, 5/6])
+    y_peak = np.array([0.3, 0.7, 0.3])
+    y_up = np.array([0.2, 0.5, 0.8])
+    lim = (-1.05,1.05)
+
+    fig2, ((ax1), (ax2)) = plt.subplots(2, 1, gridspec_kw={'height_ratios': [1, 3]}, figsize = (2, 5))
+    def plot(ax, x,y):
+        return ax.plot(x,y, marker= 'o', markerfacecolor= 'k',c= 'gray', linestyle='-')
+    plot(ax2, -1*x,y_peak)
+    plot(ax2, x, -1*y_peak)
+    plot(ax2, x, y_up)
+    plot(ax2, -1*x, -1*np.flip(y_up))
+    plot(ax1, x, y_up)
+    ax2.axhline(zorder = 0.5, c = 'lightgrey', linestyle = '--')
+    ax2.axvline(zorder = 0.5, c = 'lightgrey', linestyle = '--')
+    ax2.set(xlim= lim, ylim = lim,  xticks= [], yticks=[], xlabel = '$\epsilon_{medium} - \epsilon_{low}$', ylabel = '$\epsilon_{high} - \epsilon_{medium}$')
+    ax1.set(xlim = (0,1), ylim = (0,1), xticks= [], yticks=[])
+    ax1.set_axis_off()
+
 
     #now to get totals and proportions for more specific plots
     #lmh indicates Ep < 0 at low, medium and high I conc
