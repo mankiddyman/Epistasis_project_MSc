@@ -1,24 +1,37 @@
 import numpy as np
 from scipy import stats
 from Models import *
-#from Epistasis_calc_functions import Sort
-#from Model_Diagnostics_Functions import *
+from Epistasis_calc_functions import *
+# from Model_Diagnostics_Functions import *
 import matplotlib.pyplot as plt
 import seaborn as sns
 from matplotlib import cm
+import statistics as s
+import matplotlib.patches as mpatches
 
+"Functions to plot figure 3 from Ruben's paper. Use Sort_mutants() + convertDF() is you need a dataframe"
+"with Epistasis values and genotype info. Otheriwse, use Epistasis_hist() to get plots. May need to change fetching"
+"path and file name for Episatsis files but can also use get_Eps instead if working."
 
 #%%
 def Sort_mutants(model): #observed, model_hill, and thermodynamic
+    # if model == str('observed'):
+    #     Eps_df = pd.read_excel('../results/Eps_observed.xlsx') #takes from results.
+    # elif model == str('model_hill'):
+    #     Eps_df = pd.read_excel('../results/hill_epistasis.xlsx') #saves time if already generated, just modift the df.
+    # elif model == str('thermodynamic'):
+    #     Eps_df = pd.read_excel('../results/thermodynamic_epistasis.xlsx')
+    # else:
+    #     print('the inputted model is invalid, please selec from observed, model_hill or thermodynamic')
+
     if model == str('observed'):
         Eps_df = pd.read_excel('../results/Eps_observed.xlsx') #takes from results.
-    #elif model == str('model_hill'):
-        #Eps_df = get_Eps('model_hill') #saves time if already generated, just modift the df.
+    elif model == str('model_hill'):
+        Eps_df = pd.read_excel('../results/Eps_model_hill.xlsx')
     elif model == str('thermodynamic'):
         Eps_df = pd.read_excel('../results/Eps_model_thermodynamic.xlsx')
     else:
         print('the inputted model is invalid, please selec from observed, model_hill or thermodynamic')
-
     #output
         #filter out O10
     o10 = Eps_df[Eps_df['genotype'].str.contains(str('O10'))] 
@@ -29,10 +42,13 @@ def Sort_mutants(model): #observed, model_hill, and thermodynamic
     o1 = merge[(merge['dups']==False)]
 
 
+
     number = [2,3,4,5,6,7,8,9] #Filter out rest of mutant genotypes
     Output_df = pd.DataFrame()
     Output_df['O1'] = o1['Ep']
     Output_df.reset_index(drop=True, inplace=True) #gets rid of index from original table
+    
+
     
 
     for num in number:
@@ -81,10 +97,11 @@ def Sort_mutants(model): #observed, model_hill, and thermodynamic
     Regulator_df['R10'] = r10['Ep']
 
     return Output_df, Regulator_df, Sensor_df
+    return Output_df, Regulator_df, Sensor_df
 
 #%%
 def convertDF(dataframe,node): #need to be dimensions of 360
-#final dataframe
+    #final dataframe
     if node == 'Output':
         node = 'O'
     elif node == 'Regulator':

@@ -1,3 +1,4 @@
+#%%
 import pandas as pd
 import numpy as np
 import re
@@ -17,6 +18,7 @@ I_conc = {'low':0.0, 'medium': 0.0002, 'high':0.2}
 I_conc_np = np.array(list(I_conc.values()))
 I_conc_np[1] = 0.000195 #medium Inducer concentration is rounded in df_S, want more accurate value (0.000195) when fitting using a model
 
+#%%
 #get parameter values for model from here
 def get_params(model):
     model_name = model.__qualname__
@@ -85,20 +87,23 @@ def G_hat(model, mutants:list, df_fits:pd.DataFrame):
     return G_hat
 
 #get list of possible mutant id names - e.g ['Sensor1','Regulator1'] --> ['S1_R1' , 'R1_S1']
-def get_mut_ids(mutants:list):
+def get_mut_ids(mutants:list, want_perms = True):
     muts = []
     for mut in mutants:
         mut_index = re.search("[0-9]",mut).start()
         mutant1_id = f"{mut[:1]}{mut[mut_index:]}"
         muts.extend([mutant1_id])
     #permutations of mutants to search against in df_M
+    #source data has genotypes named in order: R then S then O, I'm copying to make it easier to compare/check
     mut_perms = []
     for ids in permutations(muts):
         string = ''
         for j in range(len(ids)):
             string += ids[j] +'_'
         mut_perms += [string[:-1]]
-    return mut_perms
+    #search df for a matching mut_id to one in mut_perms to keep nomenclature the consistent
+    mut_id = list(df_M['genotype'][df_M['genotype'].isin(mut_perms)])[0]
+    return mut_id
 
 #the opposite of get_mut_ids that turns id into list of names e.g. S1_O1 --> ['Sensor1','Regulator1']
 def get_mut_names(mut_id:str):
@@ -119,13 +124,11 @@ def get_mut_names(mut_id:str):
 #observed GFP for double or triple mutants
 #takes list of possible combinations of mutation ids as parameter e.g. ['O1_R1', 'R1_O1']
 def G_lab(mutants:list):
-    mut_perms = get_mut_ids(mutants)
-    df_mutant = df_M.loc[df_M['genotype'] == mut_perms[0]]
-    for mut in mut_perms[1:]:
-        dfa = df_M.loc[df_M['genotype'] == mut]
-        df_mutant = pd.concat([df_mutant, dfa])    
+    mut_id = get_mut_ids(mutants)
+    df_mutant = df_M[df_M['genotype'].isin([mut_id])] 
     #get mean and std for low, med, high inducer concs
     #NB - assumes low inducer concs come above medium, which come before high in mutant data
+    mut_id = list(df_mutant['genotype'])[0]
     MT_mean = np.array(df_mutant['obs_fluo_mean'])
     MT_sd = np.array(df_mutant['obs_SD'])
     G_lab = np.log10(np.divide(MT_mean, g_WT))
@@ -145,12 +148,18 @@ def Epistasis(mutants:list,df_fits:pd.DataFrame, model = 'observed'):
         G_mean = G_hat(model, mutants, df_fits)
         Epsilon = G_mean - G_log_mean
         p_vals = np.array([0,0,0])
-    return Epsilon, p_vals, G_mean, G_log_mean
+    if len(mutants) == 2:
+        genotype_category = ['pairwise']*3
+    else:
+        genotype_category = ['triplet']*3
+    genotype = [get_mut_ids(mutants=mutants)]*3
+    inducer_level = ['low', 'medium', 'high']
+    return Epsilon, p_vals, G_mean, G_log_mean, genotype_category, genotype, inducer_level
 
-
+#%%
 #calculate epistasis for all double mutants - returns dataframe with Epistasis mean and PValue, and GFP output under a model or observed in lab, and G_logadd for each pairwise and triple mutant  
 def get_Eps(model='observed'):
-    df_Eps = pd.DataFrame({'Ep': [],'Ep_pVal':[],'G': [], 'G_log': []})
+    df_Eps = pd.DataFrame({'Ep': [],'Ep_pVal':[],'G': [], 'G_log': [] ,'genotype category': [],'genotype': [], 'inducer level': []})
     cols = len(df_Eps.axes[1])
     if model != 'observed':
         df_fits = get_params(model)
@@ -177,7 +186,7 @@ def get_Eps(model='observed'):
     #reorder indexes and then reset them  to integers
     df_Eps = df_Eps.sort_index().reset_index(drop=True)
     #now add genotype names and categories
-    df_Eps[['genotype' ,'genotype category', 'inducer level']] =  df_M[['genotype', 'genotype category', 'inducer level']][3:].reset_index(drop=True)
+    #df_Eps[['genotype' ,'genotype category', 'inducer level']] =  df_M[['genotype', 'genotype category', 'inducer level']][301:304].reset_index(drop=True)
     #and a boolean indicator for significant epistasis
     df_Eps['Sig_Epistasis'] = np.where(df_Eps['Ep_pVal'] < 0.05, True, False)
     return df_Eps
@@ -194,4 +203,3 @@ def Eps_toExcel(model= 'observed'):
     df_Eps.to_excel('../results/Eps_'+model_name+'.xlsx')
     return df_Eps
 
-#more
