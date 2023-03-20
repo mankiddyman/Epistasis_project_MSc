@@ -18,11 +18,9 @@ I_conc_np = np.array(list(I_conc.values()))
 I_conc_np[1] = 0.000195 #medium Inducer concentration is rounded in df_S, want more accurate value (0.000195) when fitting using a model
 
 #get parameter values for model from here
-def get_params(model = 'observed'):
-    old_model_name = str(model).split(" ")[0]
-    new_model_name = old_model_name.removeprefix('<__main__.')
-    model_name = new_model_name
-    df_fits = pd.read_excel('../data/'+model_name+'_SM_params.xlsx').rename(columns={'Unnamed: 0': 'mutant'})
+def get_params(model):
+    model_name = model.__qualname__
+    df_fits = pd.read_excel('../data/'+model_name+'.modelSM_params.xlsx').rename(columns={'Unnamed: 0': 'mutant'})
     del df_fits["time_elapsed_s"]
     return df_fits
 
@@ -53,10 +51,10 @@ def G_log(mutants:list):
     G_log_std = np.power(G_log_std, 2)
     G_log_std_rel = np.power(G_log_std_rel, 2)
     for mut in mutants[1:]:
-        G_log, G_log_std, G_log_std_rel = g(mut)
-        G_log = np.multiply(G_log,G_log)
-        G_log_std += np.power(G_log_std, 2)
-        G_log_std_rel += np.power(G_log_std_rel, 2)
+        G_logNEW, G_log_stdNEW, G_log_std_relNEW = g(mut)
+        G_log = np.multiply(G_log,G_logNEW)
+        G_log_std += np.power(G_log_stdNEW, 2)
+        G_log_std_rel += np.power(G_log_std_relNEW, 2)
     G_log = np.log10(G_log)
     x = np.power(G_log_std, 1/2)
     y = np.power(G_log_std_rel, 1/2)
@@ -184,26 +182,16 @@ def get_Eps(model='observed'):
     df_Eps['Sig_Epistasis'] = np.where(df_Eps['Ep_pVal'] < 0.05, True, False)
     return df_Eps
 
-#now to compare inducer dependent epistasis for a given model
-def IndCompare(df_Eps, model = 'observed'):
-    df_Ep_concCompare = df_Eps.loc[(df_Eps['inducer level'] == 'low'), ['genotype category', 'Sig_Epistasis']].copy().reset_index(drop = True)
-
-    #inspect inducer dependence epistases given a model
-    Eps_ml = np.subtract(df_Eps['Ep'][df_Eps['inducer level'] == 'medium'].to_numpy() , df_Eps['Ep'][df_Eps['inducer level'] == 'low'].to_numpy())
-    Eps_hm = np.subtract(df_Eps['Ep'][df_Eps['inducer level'] == 'high'].to_numpy() , df_Eps['Ep'][df_Eps['inducer level'] == 'medium'].to_numpy())
-
-    df_Ep_concCompare['high-med'] =Eps_hm
-    df_Ep_concCompare['med-low']= Eps_ml
-
-    return df_Ep_concCompare
 
 #export Epistases to an excel document named after the chosen model
 def Eps_toExcel(model= 'observed'):
     df_Eps = get_Eps(model)
-    df_indEps = IndCompare(df_Eps, model)
     #export to a spreadsheet
     if model != 'observed':
-        model = str(str(model).split(" ")[1])
-    df_Eps.to_excel('../results/Eps_'+model+'.xlsx')
-    df_indEps.to_excel('../results/indEps_'+model+'.xlsx')
-    return df_Eps, df_indEps
+        model_name = model.__qualname__
+    else:
+        model_name = 'observed'
+    df_Eps.to_excel('../results/Eps_'+model_name+'.xlsx')
+    return df_Eps
+
+#more

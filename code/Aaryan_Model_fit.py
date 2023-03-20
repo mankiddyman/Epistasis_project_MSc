@@ -52,13 +52,16 @@ model_fitting_SM(model_type=func,n_iter=1e5,params_dict=converged_params_dict_hi
 
 #getting wt params
 func=model_hill_shaky.model
-a=model_hill_shaky([1]*16,meta_dict["WT"].S)
+params_dict = {'sen_params': {'A_s': 650, 'B_s': 25200, 'C_s': 1233, 'N_s': 1.15},'reg_params': {'A_r': 2100, 'B_r': 419, 'C_r': 0.04, 'N_r': 1}, 'out_h_params': {},'out_params': {'A_o': 1000, 'B_o': 700, 'C_o': 0.1, 'N_o': 3},'free_params': {'F_o': 60}}
+params_list = dict_to_list(params_dict)
+a=model_hill_shaky(params_list,meta_dict["WT"].S)
 I_conc=meta_dict["WT"].S
-params_list_hill_shaky=dict_to_list(a.example_dict)
-params_dict_hill_shaky=a.example_dict
-params_list_hill_shaky=get_WT_params(model_type=func,start_guess=params_list_hill_shaky,n_iter=1e5,method="TNC",params_dict=params_dict_hill_shaky,custom_settings=[],tol=0.001)
+params_list=get_WT_params(model_type=func,start_guess=params_list,n_iter=1e5,method="TNC",params_dict=params_dict,custom_settings=[[649, 25000, 1200, 1.1, 2090, 410, 0.1, 1, 500,100, 0.01, 1, 10],[660, 25300, 1250, 1.2, 2110, 420, 0.2, 1.1, 4000, None, 10, 10, None],['A_s', 'B_s', 'C_s', 'N_s', 'A_r', 'B_r','C_r', 'N_r', 'A_o', 'B_o', 'C_o', 'N_o', 'F_o'] ],tol=0.00001)
 #applying bounds to fit for sm mutants
-        
+
+[100, 15000, 500, 1,100,100 ,0.0001,1.1, 0, 800, 0, 0.8], [1000, 30000, 3000, 10,None,None, None, 3, 100, None, 1, 10], ['A_s', 'B_s', 'C_s', 'N_s','A_r', 'B_r','C_r', 'N_r', 'A_o', 'B_o', 'C_o', 'N_o']
+
+[[600, 25000,1319, 0.8],[700, 25500, 1319, 1.19],['A_S', 'B_s', 'C_s', 'N_s']]       
 
 all_files=os.listdir(os.path.join(path_main,"mutants_separated"))
 dat_files=[x for x in all_files if '.dat' in x]
