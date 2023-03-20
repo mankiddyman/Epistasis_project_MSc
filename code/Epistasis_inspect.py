@@ -1,46 +1,36 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import seaborn as sb
 from Chi_Figure3_func import Sort_mutants, convertDF
 
+observed = Figures('model_hill') 
+indEps_observed = indComp('model_thermodynamic')
 
-Figures() #defined below
-indComp('model_hill')
 
 #%% use this to define the function "Figures"
 #Figures function gives figures of standard deviation and mean epistasis for mutants grouped by inducer conc and node mutated
 def Figures(model= 'observed'):
-    #first, get dataframe with epistasis values for each mutant
-    df = Sort_mutants(model)
-    df1 = convertDF(df[0], 'Output')
-    df2 = convertDF(df[1], 'Regulator')
-    df3 = convertDF(df[2], 'Sensor')
-    #group df and calculate mean and varience for each mutation, grouped by inducer conc, node and pairwise/triplet category
-    df_Eps = pd.concat([pd.concat([df1, df2], axis = 0), df3], axis = 0).reset_index().drop('index', axis = 1)
-    df_Eps['node'] = np.where(df_Eps['Genotype'].str.startswith('S'), 'Sensor', np.where(df_Eps['Genotype'].str.startswith('O'), 'Output', 'Regulator'))
-    #reorder categories; want low then med then high on the plot
+    columns = ['genotype', 'Ep', 'genotype category', 'inducer level']
+    df = pd.read_excel('../results/Eps_'+model+'.xlsx')[columns]
+    columns.append('node')
+    df_Eps = pd.DataFrame(columns).set_index(0).T
     node_order = ['Sensor', 'Regulator', 'Output']
-    LMH_order = ['low', 'medium', 'high']
-    #blank dataframe to fill with reordered values
-    df_Eps1 = pd.DataFrame(df_Eps.columns.values).set_index(0).T
-    for i in node_order:
-        dfi = df_Eps.loc[df_Eps['node'] == i]
-        for j in LMH_order:
-            dfij = dfi.loc[dfi['LMH'] == j]
-            df_Eps1 = pd.concat([df_Eps1, dfij], ignore_index=True)
-    df_Eps = df_Eps1
+    for nodes in node_order:
+        for cat in ['pairwise', 'triple']:
+            for ind in ['low', 'medium', 'high']:
+                for i in range(1,11):
+                    node = nodes[0] +str(i)
+                    rows = df['Ep'].loc[((df['genotype'].str.startswith(node + '_')) | (df['genotype'].str.endswith('_' + node))| (df['genotype'].str.contains('_' + node + '_'))) & df['genotype category'].str.contains(cat) & df['inducer level'].str.contains(ind)]
+                    mean = rows.mean()
+                    std = rows.std()
+                    df_node = pd.DataFrame({'genotype':[node], 'mean': [mean], 'std': [std], 'genotype category': [cat], 'inducer level': [ind], 'node':[nodes]}).set_index('genotype')
+                    df_Eps = pd.concat([df_Eps, df_node])
+    df_Eps = df_Eps.drop(columns = ['genotype', 'Ep']).rename(columns = {'inducer level': 'LMH'})
 
-    #get means and standard deviation for each mutant
-    df_means = df_Eps.groupby(['LMH','node', 'Genotype' , 'Category'], sort = False).mean().reset_index()
-    df_vars = df_Eps.groupby(['LMH', 'node','Genotype', 'Category'], sort = False).std().reset_index()
-
-    #split pairwise and triplet, means and std
-    df_means_p = df_means.loc[df_means['Category']== 'pairwise']
-    df_means_t = df_means.loc[df_means['Category']== 'triplet']
-    df_vars_p = df_vars.loc[df_means['Category']== 'pairwise']
-    df_vars_t = df_vars.loc[df_means['Category']== 'triplet']
-    to_plots = [df_means_p, df_means_t, df_vars_p, df_vars_t]
+    df_means_p = df_Eps.loc[df_Eps['genotype category']== 'pairwise'].drop(columns='std').rename(columns = {'mean': 'Epistasis'})
+    df_means_t = df_Eps.loc[df_Eps['genotype category']== 'triple'].drop(columns='std').rename(columns = {'mean': 'Epistasis'})
+    df_vars_p = df_Eps.loc[df_Eps['genotype category']== 'pairwise'].drop(columns='mean').rename(columns = {'std': 'Epistasis'})
+    df_vars_t = df_Eps.loc[df_Eps['genotype category']== 'triple'].drop(columns='mean').rename(columns = {'std': 'Epistasis'})
 
     group = ['node','LMH']
     col_choice = ['r', 'g', 'b']
@@ -70,7 +60,8 @@ def Figures(model= 'observed'):
 
     #defina a plotting function
     def Plotter(ax, names, vals, xs, bar_pos, cols,isMean = False, triple = False):
-        #ax.boxplot(vals,labels=None, showfliers = False, positions = bar_pos, meanline = True, whis = 0,showcaps = False,  medianprops= {'c':'black'})
+        #names = mean_P[0]
+        #bar_pos = mean_P[3]
         if triple == True:
             title = 'triple'
             title_col = 'orange'
@@ -83,9 +74,12 @@ def Figures(model= 'observed'):
             ax.errorbar(np.mean(x) , np.mean(val), np.std(val), linestyle='None', fmt='_', c = 'k', elinewidth = 1.5, capsize = 1.5)
         if isMean == True:
             ax.axhline(zorder = 0.5, c = 'lightgrey', linestyle = '--')
-            ax.set_ylim(min(df_means.Epistasis)*1.05, max(df_means.Epistasis)*1.05)
+            #ax.set_ylim(min(df_Eps['mean'])*1.1, max(df_Eps['mean'])*1.1) 
+            ax.set_ylim(-0.7, 1.3) #hard code limits to easily compare between models
         else:
-            ax.set_ylim(0, max(df_vars.Epistasis)*1.05)
+            #ax.set_ylim(0, max(df_Eps['std'])*1.1)
+            ax.set_ylim(0, 0.8) 
+        ax.xaxis.set_ticks(bar_pos)
         ax.set_xticklabels(names,rotation=45, fontsize=8)
         secax = ax.secondary_xaxis('bottom')
         secax.set_xticks(bar_pos[1::3], node_order)
@@ -104,6 +98,7 @@ def Figures(model= 'observed'):
     means_p.set_ylabel('mean $\epsilon$')
     Fig_obs_Mean.suptitle(str(model))
     plt.show()
+    Fig_obs_Mean.savefig("../results/"+model+"_EpMean.jpg")
 
     #then varience
     Fig_obs_Var, (vars_p, vars_t) = plt.subplots(1,2)
@@ -114,6 +109,7 @@ def Figures(model= 'observed'):
     vars_p.set_ylabel('standard deviation of $\epsilon$')
     Fig_obs_Var.suptitle(str(model))
     plt.show()
+    Fig_obs_Var.savefig("../results/"+model+"EpStd.jpg")
     return Fig_obs_Mean, Fig_obs_Var
 
 
@@ -188,25 +184,32 @@ def indComp(model='observed'):
     ax.text(-xlim, -ylim*1.46, 'Triple, n = '+str(n_triplet), verticalalignment='top', horizontalalignment='left', size = 15, c= 'orange')
     plt.show()
 
+    #plot a key for the inducer dependence plot
     x = np.array([1/6, 0.5, 5/6])
     y_peak = np.array([0.3, 0.7, 0.3])
     y_up = np.array([0.2, 0.5, 0.8])
     lim = (-1.05,1.05)
 
-    fig2, ((ax1), (ax2)) = plt.subplots(2, 1, gridspec_kw={'height_ratios': [1, 3]}, figsize = (2, 5))
+    fig2, ((ax1), (ax2)) = plt.subplots(2, 1, gridspec_kw={'height_ratios': [5, 7]}, figsize = (3, 5))
     def plot(ax, x,y):
-        return ax.plot(x,y, marker= 'o', markerfacecolor= 'k',c= 'gray', linestyle='-')
+        return ax.plot(x,y, marker= 'o', markerfacecolor= 'lightgray',c= 'k', linestyle='-')
     plot(ax2, -1*x,y_peak)
     plot(ax2, x, -1*y_peak)
     plot(ax2, x, y_up)
     plot(ax2, -1*x, -1*np.flip(y_up))
     plot(ax1, x, y_up)
+    plot(ax2, [-1/3, 0, 1/3], [0,0,0])
     ax2.axhline(zorder = 0.5, c = 'lightgrey', linestyle = '--')
     ax2.axvline(zorder = 0.5, c = 'lightgrey', linestyle = '--')
-    ax2.set(xlim= lim, ylim = lim,  xticks= [], yticks=[], xlabel = '$\epsilon_{medium} - \epsilon_{low}$', ylabel = '$\epsilon_{high} - \epsilon_{medium}$')
-    ax1.set(xlim = (0,1), ylim = (0,1), xticks= [], yticks=[])
+    ax2.set(xlim= lim, ylim = lim,  xticks= [0], yticks=[0], xlabel = '$\epsilon_{medium} - \epsilon_{low}$', ylabel = '$\epsilon_{high} - \epsilon_{medium}$')
+    ax1.set(xlim = (0,1), ylim = (0,1))
     ax1.set_axis_off()
-
+    ax1.text(0.499, 0.5, '{', verticalalignment='bottom', horizontalalignment='right', size = 35, c= 'k')
+    ax1.text(0.37, 0.65, '$\epsilon_{high} - \epsilon_{medium}$', verticalalignment='center', horizontalalignment='right', size = 15, c= 'k')
+    ax1.text(0.51, 0.5, '}', verticalalignment='top', horizontalalignment='left', size = 35, c= 'k')
+    ax1.text(0.63, 0.32, '$\epsilon_{medium} - \epsilon_{low}$', verticalalignment='center', horizontalalignment='left', size = 15, c= 'k')
+    ax2.text(0.4,0, 'inducer \nindependence', size = '7', verticalalignment = 'center')
+    fig2.suptitle('Inducer dependence of $\epsilon$')
 
     #now to get totals and proportions for more specific plots
     #lmh indicates Ep < 0 at low, medium and high I conc
@@ -229,7 +232,7 @@ def indComp(model='observed'):
     down_lm = df_down[(df_down.Ep_low < 0) & ( df_down.Ep_medium < 0) & (df_down.Ep_high > 0)] 
     down_l = df_down[(df_down.Ep_low < 0) & ( df_down.Ep_medium > 0) & (df_down.Ep_high > 0)] 
     down_over = df_down[(df_down.Ep_low > 0) & ( df_down.Ep_medium > 0) & (df_down.Ep_high > 0)] 
-    return fig1
+    return fig1, fig2
 
 #plot significant epistasis
 def Sig_Ep(model='observed'):
@@ -242,4 +245,8 @@ def Sig_Ep(model='observed'):
     plt.show
     return fig
 
-# %%
+#saves figure as a jpg to results folder
+def fig_export(fig, name:str):
+    
+
+#%%
