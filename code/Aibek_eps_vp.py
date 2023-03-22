@@ -2,22 +2,40 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
-from eps_vp import Sort_mutants, convertDF, Epistasis_hist
+from Chi_Figure3_func1 import Sort_mutants, convertDF
+from Epistasis_calc_functions import *
+
+"""
+Aibek Kappassov
+March 20, 2023
+A program that contains functions used to generate:
+1) violin plots for epistasis in log-additive and Hill models (double and triple mutants) 
+2) violin plots for epistasis in log-additive and Thermodynamic Sensor models (double and triple mutants)
+3) violin plots for the Hill model parameters
+4) violin plots for the Thermodynamic Sensor model parameter
+5) pair plots for the Hill model parameters
+6) pair plots for the Thermodynamic Sensor model parameter
+"""
+#%%
+
+Eps_toExcel(model = model_hill)
+Eps_toExcel(model = model_thermodynamic)
+
 #%%
 def epsVP_df():
-    O_obs, R_obs, S_obs = Sort_mutants('observed')
+    O_obs, R_obs, S_obs = Sort_mutants(model = 'observed', strat = 'all')
     N_O_obs = convertDF(O_obs,'Output', 'observed')
     N_R_obs = convertDF(R_obs,'Regulator', 'observed')
     N_S_obs = convertDF(S_obs,'Sensor', 'observed')
-    Out, Reg, Sen = Sort_mutants('model_hill')
-    New_Out = convertDF(Out,'Output','model_hill')
-    New_Reg = convertDF(Reg,'Regulator','model_hill')
-    New_Sen = convertDF(Sen,'Sensor','model_hill')
+    Out, Reg, Sen = Sort_mutants('hill', strat = 'all')
+    New_Out = convertDF(Out,'Output','hill')
+    New_Reg = convertDF(Reg,'Regulator','hill')
+    New_Sen = convertDF(Sen,'Sensor','hill')
     
     hill_df = pd.concat([N_O_obs,N_R_obs,N_S_obs,New_Out,New_Reg,New_Sen])
 
 
-    OutT, RegT, SenT = Sort_mutants('thermodynamic')
+    OutT, RegT, SenT = Sort_mutants('thermodynamic', 'all')
     New_OutT = convertDF(OutT,'Output','thermodynamic')
     New_RegT = convertDF(RegT,'Regulator','thermodynamic')
     New_SenT = convertDF(SenT,'Sensor','thermodynamic')
@@ -50,13 +68,13 @@ hill_reg_p = hill_reg
 hill_reg_t = hill_reg
 hill_reg_p = hill_reg_p[hill_reg_p["Category"].str.contains("triplet")==False] 
 hill_reg_t = hill_reg_t[hill_reg_t["Category"].str.contains("pairwise")==False]
-hill_out_p.loc[hill_out_p["model"].str.contains("model"), "model"] = "hill"
-hill_sen_p.loc[hill_sen_p["model"].str.contains("model"), "model"] = "hill"
-hill_reg_p.loc[hill_reg_p["model"].str.contains("model"), "model"] = "hill" 
-hill_out_t.loc[hill_out_p["model"].str.contains("model"), "model"] = "hill"
-hill_sen_t.loc[hill_sen_p["model"].str.contains("model"), "model"] = "hill"
-hill_reg_t.loc[hill_reg_p["model"].str.contains("model"), "model"] = "hill"
-# Double
+hill_out_p.loc[hill_out_p["model"].str.contains("hill"), "model"] = "hill"
+hill_sen_p.loc[hill_sen_p["model"].str.contains("hill"), "model"] = "hill"
+hill_reg_p.loc[hill_reg_p["model"].str.contains("hill"), "model"] = "hill" 
+hill_out_t.loc[hill_out_t["model"].str.contains("hill"), "model"] = "hill"
+hill_sen_t.loc[hill_sen_t["model"].str.contains("hill"), "model"] = "hill"
+hill_reg_t.loc[hill_reg_t["model"].str.contains("hill"), "model"] = "hill"
+# Double mutants, violin plot
 fig = plt.figure()
 plt.subplot(3,1,1)
 plt.title("Hill Model Pairwise Epistasis", fontweight='bold')
@@ -70,7 +88,7 @@ plt.subplot(3,1,3)
 hp3 = sns.violinplot(data=hill_sen_p, x="Genotype", y="Epistasis", hue="model", split=True)
 hp3.set(ylabel=None)
 hp3.legend([],[], frameon=False)
-# Triple
+# Triple mutants, violin plot
 fig = plt.figure()
 plt.subplot(3,1,1)
 hp1 = sns.violinplot(data=hill_out_t, x="Genotype", y="Epistasis", hue="model", split=True)
@@ -114,7 +132,7 @@ td_reg_p.loc[td_reg_p["model"].str.contains("therm"), "model"] = "thermodynamic"
 td_out_t.loc[td_out_t["model"].str.contains("therm"), "model"] = "thermodynamic"
 td_sen_t.loc[td_sen_t["model"].str.contains("therm"), "model"] = "thermodynamic"
 td_reg_t.loc[td_reg_t["model"].str.contains("therm"), "model"] = "thermodynamic"
-# Double
+# Double mutants, violin plot
 fig = plt.figure()
 plt.subplot(3,1,1)
 plt.title("Thermodynamic Model Pairwise Epistasis", fontweight='bold')
@@ -128,7 +146,7 @@ plt.subplot(3,1,3)
 tp3 = sns.violinplot(data=td_sen_p, x="Genotype", y="Epistasis", hue="model", split=True)
 tp3.set(ylabel=None)
 tp3.legend([],[], frameon=False)
-# Triple
+# Triple mutants, violin plot
 fig = plt.figure()
 plt.subplot(3,1,1)
 plt.title("Thermodynamic Model Triple Epistasis", fontweight='bold')
