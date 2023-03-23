@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.lines import Line2D
 
-observed = Figures(model = 'model_hill_all',split_pt = False, model_col = 'green') #defined below
+observed = Figures(model = 'model_hill_all',split_pt = False, model_col = model_hill_all_col) #defined below
 
 indEps_observed = indComp(model1 = 'model_thermodynamic_sensor', model2 = "model_hill_all")
 
@@ -181,10 +181,11 @@ def indComp(model1:str='model_hill_all', model2:str = 'model_thermodynamic_senso
         return axis_lim
     
     #define figure for scatter plots to go onto
+    #%%
     fig = plt.figure(figsize=(8, 9))
-    ax_key1 = plt.subplot2grid(shape=(22, 14), loc=(0, 0), rowspan = 4, colspan=7)
-    ax_key2 = plt.subplot2grid(shape=(22, 14), loc=(5, 0), rowspan = 8, colspan = 7)
-    ax_obs = plt.subplot2grid(shape=(22, 14), loc=(5, 7), rowspan = 8, colspan = 7)
+    ax_key1 = plt.subplot2grid(shape=(22, 14), loc=(0, 7), rowspan = 4, colspan=7)
+    ax_key2 = plt.subplot2grid(shape=(22, 14), loc=(5, 7), rowspan = 8, colspan = 7)
+    ax_obs = plt.subplot2grid(shape=(22, 14), loc=(5, 0), rowspan = 8, colspan = 7)
     ax_1 = plt.subplot2grid(shape=(22, 14), loc=(14,0), rowspan = 8, colspan = 7)
     ax_2 = plt.subplot2grid(shape=(22,14), loc=(14, 7), rowspan = 8, colspan = 7)
 
@@ -243,12 +244,12 @@ def indComp(model1:str='model_hill_all', model2:str = 'model_thermodynamic_senso
 
     #plot a key for the inducer dependence plot
     x = np.array([1/6, 0.5, 5/6])
-    y_peak = np.array([0.3, 0.7, 0.3])
+    y_trough = np.array([0.7, 0.3, 0.7])
     y_up = np.array([0.2, 0.5, 0.8])
     def plot(ax, x,y):
         return ax.plot(x,y, marker= 'o', markerfacecolor= 'lightgray',c= 'k', linestyle='-')
-    plot(ax_key2, -1*x,y_peak)
-    plot(ax_key2, x, -1*y_peak)
+    plot(ax_key2,x,(-1)*y_trough)
+    plot(ax_key2, (-1)*x, y_trough)
     plot(ax_key2, x, y_up)
     plot(ax_key2, -1*x, -1*np.flip(y_up))
     plot(ax_key1, x, y_up)
@@ -261,6 +262,7 @@ def indComp(model1:str='model_hill_all', model2:str = 'model_thermodynamic_senso
     ax_key1.text(0.63, 0.32, '$\epsilon_{medium} - \epsilon_{low}$', verticalalignment='center', horizontalalignment='left', size = 15, c= 'k')
     ax_key2.text(0.4,0, 'inducer \nindependence', size = '7', verticalalignment = 'center')
     fig.suptitle('Inducer dependence of $\epsilon$', size = 25)
+    #%%
     fig.savefig(f"../results/indComp.jpg")
     return fig
 
