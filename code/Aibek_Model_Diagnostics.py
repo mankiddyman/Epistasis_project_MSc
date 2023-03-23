@@ -2,6 +2,8 @@ from Models import *
 from Model_Diagnostics_Functions import *
 
 """
+Aibek Kappassov
+March 6, 2023
 a program that:
 1) uses Epistasis_calc_functions to calculate mean epistasis for the models defined in Models.py
 2) plots histograms of experimental and model epistasis
