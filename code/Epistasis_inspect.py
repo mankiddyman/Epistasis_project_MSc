@@ -7,12 +7,14 @@ from matplotlib.lines import Line2D
 
 #%% use this to define the plotting functions used to inspect inducer dependent epistasis
 #set what colour you want to display the model in
-observed_col = 'red'
-model_hill_all_col = 'g'
-model_therm_sens_col = 'navy'
+observed_col = 'dimgray'
+model_hill_all_col = 'springgreen'
+model_therm_sens_col = 'slateblue'
 #Figures function gives figures of standard deviation and mean epistasis for mutants grouped by inducer conc and node mutated
 #Must input string in the form MODEL_SAMPLESTRAT and optionally a colour to label the graph
 def Figures(model= 'model_hill_all', split_pt = False, model_col:str = model_hill_all_col):
+    #give a more readable name to the model
+    model_name = f"{model.split('_')[1]}, {model.split('_')[2]}"
     #function to get Eps for a given model
     def get_modelEps(model:str = 'observed'):
         columns = [ 'genotype category', 'inducer level', 'genotype','Ep']
@@ -34,7 +36,10 @@ def Figures(model= 'model_hill_all', split_pt = False, model_col:str = model_hil
                 #add mutant df to df with all mutants in
                 df_Eps = pd.concat([df_Eps, df_mut])
         #add a column indicating the model
-        df_Eps['model'] = [f"{model}"]*len(df_Eps)
+        #give a more readable name to the models
+        if model != 'observed':
+            model = f"{model.split('_')[1]}, {model.split('_')[2]}"
+        df_Eps['model'] = [model]*len(df_Eps)
         #prefer 'LMH' to 'inducer level' since only one word, same for genotype category
         return df_Eps.rename(columns = {'inducer level': 'LMH', 'genotype category': 'cat'}).reset_index(drop = True)
 
@@ -44,7 +49,7 @@ def Figures(model= 'model_hill_all', split_pt = False, model_col:str = model_hil
     #stick node, and LMH columns together so that seaborn can group them properly
     df_Eps["desc"] = df_Eps["node"].map(str) + ", " + df_Eps["LMH"]
 
-    #manually get the x tick positions and names
+    #manually set the x tick positions and names
     x_ticks = []
     x_names = []
     for i in range(df_Eps["desc"].nunique()):
@@ -59,11 +64,13 @@ def Figures(model= 'model_hill_all', split_pt = False, model_col:str = model_hil
     sec_x_names = list(df_Eps["node"].unique())
 
     def Plotter(ax, data, y):
-        palette ={"observed": observed_col, model: model_col}
+        #violin plots for each node/inducer conc combination
+        palette ={"observed": observed_col, model_name: model_col}
         sns.violinplot(ax = ax, data=data, x='desc', y=y, hue="model", split=True, dodge=False, palette=palette)
         #ax.xaxis.set_ticks(x_ticks)
         ax.set_xticklabels(x_names, fontsize=axis_size)
         ax.set_xlabel('')
+        #coloured backgrounds to make it clear which plot goes with which node
         ax.add_patch(patches.Rectangle((-0.5,-100), 9/3, 1000, alpha = 0.1, color = 'r', zorder = 0.1)) 
         ax.add_patch(patches.Rectangle((-0.5+9/3,-100), 9/3, 1000, alpha = 0.1, color = 'g', zorder = 0.1)) 
         ax.add_patch(patches.Rectangle((-0.5+(9*2)/3,-100), 9/3, 1000, alpha = 0.1, color = 'b', zorder = 0.1)) 
@@ -74,13 +81,17 @@ def Figures(model= 'model_hill_all', split_pt = False, model_col:str = model_hil
         ax1.set_xticks([])
         secax = ax2.secondary_xaxis('bottom')
         secax.set_xticks(x_ticks[1::3], sec_x_names, fontsize = axis_size)
+        #axis labeled by inducer conc
+        ax1.tick_params(axis = "y", labelsize = tick_size)
+        ax2.tick_params(axis = "y", labelsize = tick_size)
         secax.tick_params(pad=pad)
         #ax.set_xticklabels( names )
+        #axis labelled by node 
         for ticklabel, tickcolor in zip(secax.get_xticklabels(), ['r', 'g', 'b']):
             ticklabel.set_color(tickcolor)
         #axis labels
         ax1.set_ylabel(f"mean of $\epsilon$", fontsize = axis_size)
-        ax2.set_ylabel(f"standard deviation of $\epsilon$", fontsize = axis_size)
+        ax2.set_ylabel(f"$\sigma$ of $\epsilon$", fontsize = axis_size)
         #legend
         ax1.get_legend().remove()
         ax2.get_legend().remove()
@@ -88,43 +99,51 @@ def Figures(model= 'model_hill_all', split_pt = False, model_col:str = model_hil
     if split_pt == False:
         title_size = 15
         axis_size = 14
-        pad = 20
+        tick_size = 10
+        pad = 20#title padding
+        pad_legend = -0.1 #legend padding from bottom of x axis
         Fig, (ax1, ax2) = plt.subplots(2, 1, figsize = (8.27,7))
         Plotter(ax1, data = df_Eps, y= "mean")
         Plotter(ax2, data = df_Eps, y= "std")
         set_axs(ax1, ax2)
+        #file path to save figure to
         file_path = f"../results/Ep_compare_split_{model}.jpg"
 
     else:
-        title_size = 30
-        axis_size = 25
-        pad = 40
-        Fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize = (16,14))
+        #if separate plots for pairs and trips
+        title_size = 50
+        axis_size = 40
+        tick_size = 25
+        pad = 70 #title pad
+        pad_legend = -0.14
+        Fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize = (32,14))
         Plotter(ax1, data = df_Eps.loc[df_Eps.cat == "pairwise"], y= "mean")
         Plotter(ax3, data = df_Eps.loc[df_Eps.cat == "pairwise"], y= "std")
         Plotter(ax2, data = df_Eps.loc[df_Eps.cat == "triplet"], y= "mean")
         Plotter(ax4, data = df_Eps.loc[df_Eps.cat == "triplet"], y= "std")
         set_axs(ax1, ax3)
         set_axs(ax1 = ax2, ax2 = ax4)
-        ax2.set_ylabel('')
+        ax2.set(ylabel= '')
         ax2.set_title('Triplet', c = 'orange', fontsize = axis_size)
         ax1.set_title('Pairwise', c = 'purple', fontsize = axis_size)
-        ax4.set_ylabel('')
+        ax4.set(ylabel= '')
         ax3.set_xticklabels(['L', 'M', 'H']*3)
         ax4.set_xticklabels(['L', 'M', 'H']*3)
+        #file path to be saved to later
         file_path = f"../results/Ep_compare_split_{model}_pt.jpg"
-      
+    #legend
     handles, labels = ax2.get_legend_handles_labels()
-    Fig.legend(handles, labels, loc="upper left", bbox_to_anchor=(1, 0.9), fontsize = axis_size)
+    Fig.legend(handles, labels, loc="lower left", bbox_to_anchor=(0, pad_legend), fontsize = axis_size, edgecolor = 'w')
     Fig.suptitle(f"Mean and Varience of Calculated versus Obseved Epistasis for \n{model.split('_')[1]} model with sampling strategy '{model.split('_')[2]}'".title(), fontsize = title_size)
     Fig.tight_layout()
+    #save to jpg
     Fig.savefig(file_path, bbox_inches='tight')
     return Fig 
 #%%
 observed = Figures(model = 'model_hill_all',split_pt = False, model_col = model_hill_all_col)
 observed = Figures(model = 'model_hill_all',split_pt = True, model_col = model_hill_all_col)
-observed = Figures(model = 'model_thermodynamic_all',split_pt = False, model_col = model_therm_sens_col)
-observed = Figures(model = 'model_thermodynamic_all',split_pt = True, model_col = model_therm_sens_col)
+observed = Figures(model = 'model_thermodynamic_sensor',split_pt = False, model_col = model_therm_sens_col)
+observed = Figures(model = 'model_thermodynamic_sensor',split_pt = True, model_col = model_therm_sens_col)
 
 #%%
 #plot comparing epistasis at different inducer concs
@@ -180,14 +199,15 @@ def indComp(model1:str='model_hill_all', model2:str = 'model_thermodynamic_senso
         b = (df.Ep_high - df.Ep_medium).abs().max()
         axis_lim = max(a,b)
         return axis_lim
-    
+
     #define figure for scatter plots to go onto
     fig = plt.figure(figsize=(8, 9))
-    ax_key1 = plt.subplot2grid(shape=(22, 14), loc=(0, 7), rowspan = 4, colspan=7)
-    ax_key2 = plt.subplot2grid(shape=(22, 14), loc=(5, 7), rowspan = 8, colspan = 7)
-    ax_obs = plt.subplot2grid(shape=(22, 14), loc=(5, 0), rowspan = 8, colspan = 7)
-    ax_1 = plt.subplot2grid(shape=(22, 14), loc=(14,0), rowspan = 8, colspan = 7)
-    ax_2 = plt.subplot2grid(shape=(22,14), loc=(14, 7), rowspan = 8, colspan = 7)
+    shape = (100,80)
+    ax_key1 = plt.subplot2grid(shape=shape, loc=(0, 20), rowspan = 20, colspan=40)
+    ax_key2 = plt.subplot2grid(shape=shape, loc=(25, 45), rowspan = 35, colspan = 35)
+    ax_obs = plt.subplot2grid(shape=shape, loc=(25, 5), rowspan = 35, colspan = 35)
+    ax_1 = plt.subplot2grid(shape=shape, loc=(65,5), rowspan = 35, colspan = 35)
+    ax_2 = plt.subplot2grid(shape=shape, loc=(65, 45), rowspan = 35, colspan = 35)
 
     a =Plotter(ax_obs, df_obs)
     b = Plotter(ax_1, df_model1)
@@ -201,7 +221,10 @@ def indComp(model1:str='model_hill_all', model2:str = 'model_thermodynamic_senso
         ax.set_ylim([-axis_lim*1.1,axis_lim*1.1])
         ax.set_xlabel('$\u03B5_{medium}$ - $\u03B5_{low}$')
         ax.set_ylabel('$\u03B5_{high}$ - $\u03B5_{medium}$')
-        ax.set_title(str(model))
+        if model == 'observed':
+            ax.set_title(f"{model}")
+        else:
+            ax.set_title(f"{model.split('_')[1]}, {model.split('_')[2]}")
         if hidex == True:
             ax.set_xticks([])
             ax.set_xlabel('')
@@ -212,10 +235,11 @@ def indComp(model1:str='model_hill_all', model2:str = 'model_thermodynamic_senso
     set_ax(ax_obs, 'observed', hidex=True)
     set_ax(ax_1, model1)
     set_ax(ax_2, model2, hidey=True)
-    ax_key2.set(xticks = [], xlabel= '', ylabel = '', yticks = [])
+    ax_key2.set(xticks = [], xlabel= '', ylabel = '', yticks = [], title = "key")
     ax_key1.set_axis_off()
     legend_elements = [Line2D([0], [0], marker='o', color='w', label='Pairwise', markerfacecolor='purple', markeredgecolor = "k", markersize=13, alpha = 0.65), Line2D([0], [0], marker='o', color='w', label='Triple',  alpha = 0.65, markerfacecolor='orange',markeredgecolor = "k", markersize=13)]
-    ax_obs.legend(handles = legend_elements,  loc="lower left", bbox_to_anchor=(0, 1.1))
+    ax_1.legend(handles = legend_elements,  loc="upper left", bbox_to_anchor=(0, -0.15), edgecolor = 'w')
+    #ax_obs.legend(frameon=False)
 
     #proportins mutants in each quadrant
     def writing(ax, n,n_pair, n_trip, n_up, n_down, n_peak, n_trough):
@@ -261,12 +285,11 @@ def indComp(model1:str='model_hill_all', model2:str = 'model_thermodynamic_senso
     ax_key1.text(0.51, 0.5, '}', verticalalignment='top', horizontalalignment='left', size = 35, c= 'k')
     ax_key1.text(0.63, 0.32, '$\epsilon_{medium} - \epsilon_{low}$', verticalalignment='center', horizontalalignment='left', size = 15, c= 'k')
     ax_key2.text(0.4,0, 'inducer \nindependence', size = '7', verticalalignment = 'center')
-    fig.suptitle('Inducer dependence of $\epsilon$', size = 25)
+    fig.suptitle('Inducer dependence of $\epsilon$', size = 25, y = 0.93)
     fig.tight_layout()
     fig.savefig(f"../results/Ep_indComp.jpg", bbox_inches='tight')
     return fig
 #%%
-
 indEps_observed = indComp(model1 = 'model_thermodynamic_sensor', model2 = "model_hill_all")
 
 #%%

@@ -11,7 +11,7 @@ from Epistasis_calc_functions import *
 #file path for model called 'MODEL' and sampling strateygy 'STRATEGY' will be '../results/Eps_MODEL_STRATEGY.xlsx' 
 #Observed epistasis is stored as '../results/Eps_observed.xlsx' 
 # & get a dataframe comparing inducer dependent epistasis from df_Ep
-df_Eps1 = Eps_toExcel(model = model_hill, strategy = 'sensor')
+df_Eps1 = Eps_toExcel(model = model_hill, strategy = 'all')
 #################################################
 df = pd.read_excel('../data/Source_Data.xlsx', sheet_name='Figure 2')
 

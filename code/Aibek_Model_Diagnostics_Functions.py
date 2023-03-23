@@ -33,48 +33,78 @@ eps_lad = getEps("observed")
 eps_hm = getEps('model_hill_all')
 eps_td = getEps('model_thermodynamic_all')
 eps_hm_sens = getEps('model_hill_sensor')
-eps_td_sens = getEps('model_thermodynamic_all')
+eps_td_sens = getEps('model_thermodynamic_sensor')
 
 #%%
 # 2
 # epistasis disribution 
 def get_histograms(eps_lad,eps_hm,eps_hm_sens,eps_td,eps_td_sens):
-    fig, axs = plt.subplots(1,3, figsize=(15,5.5), constrained_layout = True)
-    axs[0].hist(eps_lad, bins = np.arange(min(eps_lad), max(eps_lad) + 0.1, 0.1), alpha=0.5, fill = False, histtype = 'step', edgecolor = 'r', linewidth = 1.5,  label='Experimental, Mean:-0.198')
-    axs[0].hist(eps_hm, bins = np.arange(min(eps_hm), max(eps_hm) + 0.1, 0.1), alpha=0.5,fill = False, histtype = 'step', edgecolor = 'g', linewidth = 1.5,  label='Hill Model, Mean: -0.172')
-    axs[0].hist(eps_hm_sens, bins = np.arange(min(eps_hm_sens), max(eps_hm_sens) + 0.1, 0.1), alpha=0.5,fill = False, histtype = 'step', edgecolor = 'mediumaquamarine', linewidth = 1.5,  label='Hill Sensor, Mean:-0.04')
-    axs[0].vlines(x= -0.198, ymin= 0, ymax= 1000, linestyles='dashed', linewidth = 0.6, colors='r')
-    axs[0].vlines(x= -0.172, ymin= 0, ymax= 1000, linestyles='dashed', linewidth = 0.6, colors='g')
-    axs[0].vlines(x= -0.04, ymin= 0, ymax= 1000, linestyles='dashed', linewidth = 0.6, colors='lime')
+    #define paramaeters for the plot
+    exp_col = 'dimgray'
+    hill_all_col = 'springgreen'
+    hill_sens_col = 'mediumseagreen'
+    therm_all_col = 'turquoise'
+    therm_sens_col = 'slateblue'
+    mean_lad = round(eps_lad.mean(),3)
+    mean_hm= round(eps_hm.mean(),3)
+    mean_td= round(eps_td.mean(),3)
+    mean_hm_sens= round(eps_hm_sens.mean(),3)
+    mean_td_sens= round(eps_td_sens.mean(),3)
+    hist_width = 2 #mean of hist outlines
+    mean_width = 1.5 #width of mean lines
+    sub_size = 17 #subtitle size
+
+    fig, axs = plt.subplots(1,3, figsize=(15,5.5))
+    y_obs, x, _ = axs[0].hist(eps_lad, bins = np.arange(min(eps_lad), max(eps_lad) + 0.1, 0.1), fill = False, histtype = 'step', edgecolor = exp_col, linewidth = hist_width,  label=f'Experimental, Mean: {mean_lad}')
+    #histograms, hill
+    y_hill_all, x , _ = axs[0].hist(eps_hm, bins = np.arange(min(eps_hm), max(eps_hm) + 0.1, 0.1), fill = False, histtype = 'step', edgecolor = hill_all_col, linewidth = hist_width,  label=f'Hill all. Mean: {mean_hm}')
+    y_hill_sens, x, _ = axs[0].hist(eps_hm_sens, bins = np.arange(min(eps_hm_sens), max(eps_hm_sens) + 0.1, 0.1),fill = False, histtype = 'step', edgecolor = hill_sens_col, linewidth = hist_width,  label=f'Hill Sensor, Mean: {mean_hm_sens}')
+    #mean lines, hill
+    axs[0].axvline(x= mean_lad, ls='dashed', linewidth = mean_width, c=exp_col)
+    axs[0].axvline(x= mean_hm,  ls='dashed', linewidth = mean_width, c=hill_all_col)
+    axs[0].axvline(x= mean_hm_sens, ls='dashed', linewidth = mean_width, c=hill_sens_col)
+    #axes, hill
     axs[0].axis(xmin=-1,xmax=1)
     axs[0].tick_params(labelsize=20)
     axs[0].set_ylabel('Frequency', fontsize=24)
-    #
-    axs[1].hist(eps_lad, bins = np.arange(min(eps_lad), max(eps_lad) + 0.1, 0.1), alpha=0.5, fill = False, histtype = 'step', edgecolor = 'r', linewidth = 1.5)
-    axs[1].hist(eps_td, bins = np.arange(min(eps_td), max(eps_td) + 0.1, 0.1), alpha=0.5, fill = False, histtype = 'step', edgecolor = 'b', linewidth = 1.5, label='Thermodynamic Model, Mean: 0.249')
-    axs[1].hist(eps_td_sens, bins = np.arange(min(eps_td_sens), max(eps_td_sens) + 0.1, 0.1), alpha=0.5, fill = False, histtype = 'step', edgecolor = 'navy', linewidth = 1.5,  label='Thermodynamic Sensor, Mean:-0.093')
-    axs[1].vlines(x= -0.198, ymin= 0, ymax= 700, linestyles='dashed', linewidth = 0.6, colors='r')
-    axs[1].vlines(x= 0.249, ymin= 0, ymax= 700, linestyles='dashed', linewidth = 0.6, colors='b')
-    axs[1].vlines(x= -0.093, ymin= 0, ymax= 700, linestyles='dashed', linewidth = 0.6, colors='cornflowerblue')
+    axs[0].set_title(f'Hill functions', fontsize = sub_size)
+    #hist, therm
+    axs[1].hist(eps_lad, bins = np.arange(min(eps_lad), max(eps_lad) + 0.1, 0.1), fill = False, histtype = 'step', edgecolor = exp_col, linewidth = hist_width)
+    y_therm_all, x, _ = axs[1].hist(eps_td, bins = np.arange(min(eps_td), max(eps_td) + 0.1, 0.1), fill = False, histtype = 'step', edgecolor = therm_all_col, linewidth = hist_width, label=f'Thermodynamic All, Mean: {mean_td}')
+    y_therm_sens, x, _ = axs[1].hist(eps_td_sens, bins = np.arange(min(eps_td_sens), max(eps_td_sens) + 0.1, 0.1), fill = False, histtype = 'step', edgecolor = therm_sens_col, linewidth = hist_width,  label='Thermodynamic Sensor, Mean:-0.093')
+    #means, therm
+    axs[1].axvline(x= mean_lad, ymin= 0, ymax= 700, ls='dashed', linewidth = mean_width, c=exp_col)
+    axs[1].axvline(x= mean_td, ls='dashed', linewidth = mean_width, c=therm_all_col)
+    axs[1].axvline(x= mean_td_sens, ls='dashed', linewidth = mean_width, c=therm_sens_col)
+    #axes, therm
     axs[1].set_xlabel('Epistasis', fontsize=10)
     axs[1].xaxis.label.set_fontsize(24)
     axs[1].tick_params(labelsize=20)
-    fig.legend(bbox_to_anchor=(1.29,0.9),fontsize=18)
-    #
-    axs[2].hist(eps_lad, bins = np.arange(min(eps_lad), max(eps_lad) + 0.1, 0.1), alpha=0.5, fill = False, histtype = 'step', edgecolor = 'r', linewidth = 1.5,  label='Experimental, Mean:-0.198')
-    axs[2].hist(eps_hm, bins = np.arange(min(eps_hm), max(eps_hm) + 0.1, 0.1), alpha=0.5,fill = False, histtype = 'step', edgecolor = 'g', linewidth = 1.5,  label='Hill Model, Mean: -0.172')
-    axs[2].hist(eps_td_sens, bins = np.arange(min(eps_td_sens), max(eps_td_sens) + 0.1, 0.1), alpha=0.5, fill = False, histtype = 'step', edgecolor = 'navy', linewidth = 1.5,  label='Thermodynamic Sensor, Mean:-0.093')
-    axs[2].vlines(x= -0.198, ymin= 0, ymax= 700, linestyles='dashed', linewidth = 0.6, colors='r')
-    axs[2].vlines(x= -0.172, ymin= 0, ymax= 700, linestyles='dashed', linewidth = 0.6, colors='b')
-    axs[2].vlines(x= -0.093, ymin= 0, ymax= 700, linestyles='dashed', linewidth = 0.6, colors='cornflowerblue')
-    axs[2].axis(xmin=-1,xmax=1)
+    axs[1].set_title(f'Thermodynamic functions', fontsize = sub_size)
+    #hist, top
+    axs[2].hist(eps_lad, bins = np.arange(min(eps_lad), max(eps_lad) + 0.1, 0.1), fill = False, histtype = 'step', edgecolor = exp_col, linewidth = hist_width,  label=f'Experimental')
+    axs[2].hist(eps_hm, bins = np.arange(min(eps_hm), max(eps_hm) + 0.1, 0.1),fill = False, histtype = 'step', edgecolor = hill_all_col, linewidth =hist_width,  label=f'Hill Model')
+    axs[2].hist(eps_td_sens, bins = np.arange(min(eps_td_sens), max(eps_td_sens) + 0.1, 0.1), fill = False, histtype = 'step', edgecolor = therm_sens_col, linewidth = hist_width,  label=f'Thermodynamic Sensor')
+    #means, top
+    axs[2].axvline(x= mean_lad, ls='dashed', linewidth = mean_width, c=exp_col)
+    axs[2].axvline(x= mean_hm,ls='dashed', linewidth = mean_width, c='b')
+    axs[2].axvline(x= mean_td_sens,ls='dashed', linewidth = mean_width, c=therm_sens_col)
+    #axes, top
+    #axs[2].axis(xmin=-1,xmax=1)
     axs[2].tick_params(labelsize=20)
-    #add subtitles for subplots
-    sub_size = 17
-    axs[0].set_title('Hill functions', fontsize = sub_size)
-    axs[1].set_title('Thermodynamic functions', fontsize = sub_size)
-    axs[2].set_title('Top functions', fontsize = sub_size)
-    fig.suptitle('Distribution of Epistasis', fontweight='bold', fontsize = 24)
+    axs[2].set_title(f'Top functions', fontsize = sub_size)
+    #ylims
+    ylim = max(y_obs.max(), y_hill_all.max(), y_hill_sens.max(), y_therm_all.max(), y_therm_sens.max())*1.1
+    #axs[0].set_ylim(0, ylim)
+    #axs[1].set_ylim(0, ylim)
+    #axs[2].set_ylim(0, ylim)
+    #legend
+    axs[0].legend(loc = 'lower left',fontsize=18, bbox_to_anchor = (-0.5,-0.5), frameon=False)
+    axs[1].legend(loc = 'lower left',fontsize=18, bbox_to_anchor = (-0.4,-0.4), frameon=False)
+    #axs[2].legend(loc = 'lower left',fontsize=18, bbox_to_anchor = (0.05,-0.5))
+    #title
+    fig.suptitle('Distribution of Epistasis ', fontweight='bold', fontsize = 24, y = 1.05)
+    #save to jpg
     fig.savefig('../results/Ep_compare_hist.jpg', bbox_inches='tight')
 #%%
 get_histograms(eps_lad, eps_hm, eps_hm_sens, eps_td, eps_td_sens)
