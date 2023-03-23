@@ -5,14 +5,10 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.lines import Line2D
 
-observed = Figures(model = 'model_hill_all',split_pt = False, model_col = model_hill_all_col) #defined below
-
-indEps_observed = indComp(model1 = 'model_thermodynamic_sensor', model2 = "model_hill_all")
-
 #%% use this to define the plotting functions used to inspect inducer dependent epistasis
 #set what colour you want to display the model in
 observed_col = 'red'
-model_hill_all_col = 'green'
+model_hill_all_col = 'g'
 model_therm_sens_col = 'navy'
 #Figures function gives figures of standard deviation and mean epistasis for mutants grouped by inducer conc and node mutated
 #Must input string in the form MODEL_SAMPLESTRAT and optionally a colour to label the graph
@@ -97,7 +93,7 @@ def Figures(model= 'model_hill_all', split_pt = False, model_col:str = model_hil
         Plotter(ax1, data = df_Eps, y= "mean")
         Plotter(ax2, data = df_Eps, y= "std")
         set_axs(ax1, ax2)
-        file_path = "../results/"+model+"Ep_compare.jpg"
+        file_path = f"../results/Ep_compare_split_{model}.jpg"
 
     else:
         title_size = 30
@@ -116,16 +112,21 @@ def Figures(model= 'model_hill_all', split_pt = False, model_col:str = model_hil
         ax4.set_ylabel('')
         ax3.set_xticklabels(['L', 'M', 'H']*3)
         ax4.set_xticklabels(['L', 'M', 'H']*3)
-        file_path = "../results/"+model+"Ep_compare_pt.jpg"
+        file_path = f"../results/Ep_compare_split_{model}_pt.jpg"
       
     handles, labels = ax2.get_legend_handles_labels()
-    Fig.legend(handles, labels, loc="upper left", bbox_to_anchor=(0.9, 0.9), fontsize = axis_size)
+    Fig.legend(handles, labels, loc="upper left", bbox_to_anchor=(1, 0.9), fontsize = axis_size)
     Fig.suptitle(f"Mean and Varience of Calculated versus Obseved Epistasis for \n{model.split('_')[1]} model with sampling strategy '{model.split('_')[2]}'".title(), fontsize = title_size)
-    
-    Fig.savefig(file_path)
+    Fig.tight_layout()
+    Fig.savefig(file_path, bbox_inches='tight')
     return Fig 
+#%%
+observed = Figures(model = 'model_hill_all',split_pt = False, model_col = model_hill_all_col)
+observed = Figures(model = 'model_hill_all',split_pt = True, model_col = model_hill_all_col)
+observed = Figures(model = 'model_thermodynamic_all',split_pt = False, model_col = model_therm_sens_col)
+observed = Figures(model = 'model_thermodynamic_all',split_pt = True, model_col = model_therm_sens_col)
 
-
+#%%
 #plot comparing epistasis at different inducer concs
 #first, get a dataframe with Ep value at high, hedium and low I conc on one row
 def indComp(model1:str='model_hill_all', model2:str = 'model_thermodynamic_sensor'):
@@ -181,7 +182,6 @@ def indComp(model1:str='model_hill_all', model2:str = 'model_thermodynamic_senso
         return axis_lim
     
     #define figure for scatter plots to go onto
-    #%%
     fig = plt.figure(figsize=(8, 9))
     ax_key1 = plt.subplot2grid(shape=(22, 14), loc=(0, 7), rowspan = 4, colspan=7)
     ax_key2 = plt.subplot2grid(shape=(22, 14), loc=(5, 7), rowspan = 8, colspan = 7)
@@ -215,7 +215,7 @@ def indComp(model1:str='model_hill_all', model2:str = 'model_thermodynamic_senso
     ax_key2.set(xticks = [], xlabel= '', ylabel = '', yticks = [])
     ax_key1.set_axis_off()
     legend_elements = [Line2D([0], [0], marker='o', color='w', label='Pairwise', markerfacecolor='purple', markeredgecolor = "k", markersize=13, alpha = 0.65), Line2D([0], [0], marker='o', color='w', label='Triple',  alpha = 0.65, markerfacecolor='orange',markeredgecolor = "k", markersize=13)]
-    ax_obs.legend(handles = legend_elements,  loc="lower right", bbox_to_anchor=(1, 1.1))
+    ax_obs.legend(handles = legend_elements,  loc="lower left", bbox_to_anchor=(0, 1.1))
 
     #proportins mutants in each quadrant
     def writing(ax, n,n_pair, n_trip, n_up, n_down, n_peak, n_trough):
@@ -262,10 +262,14 @@ def indComp(model1:str='model_hill_all', model2:str = 'model_thermodynamic_senso
     ax_key1.text(0.63, 0.32, '$\epsilon_{medium} - \epsilon_{low}$', verticalalignment='center', horizontalalignment='left', size = 15, c= 'k')
     ax_key2.text(0.4,0, 'inducer \nindependence', size = '7', verticalalignment = 'center')
     fig.suptitle('Inducer dependence of $\epsilon$', size = 25)
-    #%%
-    fig.savefig(f"../results/indComp.jpg")
+    fig.tight_layout()
+    fig.savefig(f"../results/Ep_indComp.jpg", bbox_inches='tight')
     return fig
+#%%
 
+indEps_observed = indComp(model1 = 'model_thermodynamic_sensor', model2 = "model_hill_all")
+
+#%%
 #plot significant epistasis
 def Sig_Ep(model='observed'):
     df_M = pd.read_excel('../results/Eps_'+str(model)+'.xlsx', index_col=0)
@@ -276,7 +280,7 @@ def Sig_Ep(model='observed'):
     ax.axvline(0.05, c = 'darkgray', ls = '--')
     plt.show
     return fig
-    
+#%%
 
 #Figures_scatter function gives figures of standard deviation and mean epistasis for mutants grouped by inducer conc and node mutated
 def Figures_scatter(model= 'observed'):

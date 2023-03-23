@@ -26,16 +26,20 @@ def get_eData(model):
         eps = eps_td_df['Ep']
     return eps 
 #%%
-eps_lad = get_eData('observed')
-eps_hm = get_eData('model_hill')
-eps_td = get_eData('model_thermodynamic')
+def getEps(model_desc:str = "observed"):
+    df =  pd.read_excel(f"../results/Eps_{model_desc}.xlsx").Ep
+    return df
+eps_lad = getEps("observed")
+eps_hm = getEps('model_hill_all')
+eps_td = getEps('model_thermodynamic_all')
+eps_hm_sens = getEps('model_hill_sensor')
+eps_td_sens = getEps('model_thermodynamic_all')
 
 #%%
 # 2
 # epistasis disribution 
 def get_histograms(eps_lad,eps_hm,eps_hm_sens,eps_td,eps_td_sens):
-    fig, axs = plt.subplots(1,3, figsize=(15,5.5))
-
+    fig, axs = plt.subplots(1,3, figsize=(15,5.5), constrained_layout = True)
     axs[0].hist(eps_lad, bins = np.arange(min(eps_lad), max(eps_lad) + 0.1, 0.1), alpha=0.5, fill = False, histtype = 'step', edgecolor = 'r', linewidth = 1.5,  label='Experimental, Mean:-0.198')
     axs[0].hist(eps_hm, bins = np.arange(min(eps_hm), max(eps_hm) + 0.1, 0.1), alpha=0.5,fill = False, histtype = 'step', edgecolor = 'g', linewidth = 1.5,  label='Hill Model, Mean: -0.172')
     axs[0].hist(eps_hm_sens, bins = np.arange(min(eps_hm_sens), max(eps_hm_sens) + 0.1, 0.1), alpha=0.5,fill = False, histtype = 'step', edgecolor = 'mediumaquamarine', linewidth = 1.5,  label='Hill Sensor, Mean:-0.04')
@@ -53,8 +57,6 @@ def get_histograms(eps_lad,eps_hm,eps_hm_sens,eps_td,eps_td_sens):
     axs[1].vlines(x= 0.249, ymin= 0, ymax= 700, linestyles='dashed', linewidth = 0.6, colors='b')
     axs[1].vlines(x= -0.093, ymin= 0, ymax= 700, linestyles='dashed', linewidth = 0.6, colors='cornflowerblue')
     axs[1].set_xlabel('Epistasis', fontsize=10)
-    axs[1].set_title('Distribution of Epistasis', fontweight='bold')
-    axs[1].title.set_fontsize(24)
     axs[1].xaxis.label.set_fontsize(24)
     axs[1].tick_params(labelsize=20)
     fig.legend(bbox_to_anchor=(1.29,0.9),fontsize=18)
@@ -67,8 +69,15 @@ def get_histograms(eps_lad,eps_hm,eps_hm_sens,eps_td,eps_td_sens):
     axs[2].vlines(x= -0.093, ymin= 0, ymax= 700, linestyles='dashed', linewidth = 0.6, colors='cornflowerblue')
     axs[2].axis(xmin=-1,xmax=1)
     axs[2].tick_params(labelsize=20)
+    #add subtitles for subplots
+    sub_size = 17
+    axs[0].set_title('Hill functions', fontsize = sub_size)
+    axs[1].set_title('Thermodynamic functions', fontsize = sub_size)
+    axs[2].set_title('Top functions', fontsize = sub_size)
+    fig.suptitle('Distribution of Epistasis', fontweight='bold', fontsize = 24)
+    fig.savefig('../results/Ep_compare_hist.jpg', bbox_inches='tight')
 #%%
-# get_histograms(eps_lad, eps_hm, eps_hm_sens, eps_td, eps_td_sens)
+get_histograms(eps_lad, eps_hm, eps_hm_sens, eps_td, eps_td_sens)
     
 #%%
 # 3
