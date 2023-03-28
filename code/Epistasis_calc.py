@@ -8,9 +8,10 @@ from Epistasis_calc_functions import *
 #df_fits = get_params()
 ################################################################
 #run here to get excel spreadsheet of epistases for a given model a datframe called df_Eps, default is 'observed' which calculates epistasis w.r.t. lab data
-#file path for model called 'MODEL' will be '../results/Eps_MODEL.xlsx' 
+#file path for model called 'MODEL' and sampling strateygy 'STRATEGY' will be '../results/Eps_MODEL_STRATEGY.xlsx' 
+#Observed epistasis is stored as '../results/Eps_observed.xlsx' 
 # & get a dataframe comparing inducer dependent epistasis from df_Ep
-df_Eps1 = Eps_toExcel()
+df_Eps1 = Eps_toExcel(model = model_hill, strategy = 'all')
 #################################################
 df = pd.read_excel('../data/Source_Data.xlsx', sheet_name='Figure 2')
 

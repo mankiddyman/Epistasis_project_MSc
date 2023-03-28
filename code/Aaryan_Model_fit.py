@@ -86,26 +86,28 @@ params_therm_list=get_WT_params(model_type=func,start_guess=params_therm_list,n_
 
 #competition model
 #%%
-model_comp=CompDeg(params_list=[1]*15,I_conc=meta_dict["WT"].S)
-func=model_comp.model_2
-params_dict_comp=model_comp.example_dict_model_2
+model_comp=CompDeg(params_list=[1]*14,I_conc=meta_dict["WT"].S)
+func=model_comp.model
+params_dict_comp=model_comp.example_dict_model
 params_list_comp=dict_to_list(params_dict_comp)
-params_list_comp=[4.20504769e+02, 1.47356534e+04, 1.67916264e+03, 1.27219156e+00, 23, 2.36888092e+04, 1.03576041e-02 ,9.10072254e-01, 1.67389421e+00, 8.95345e+01, 2.65769862e+00 ,1.37995266e+00 ,23612.8375e+00, 5, 100]
+params_list_comp=[4.20504769e+02, 1.47356534e+04, 1.67916264e+03, 1.27219156e+00, 23, 2.36888092e+04, 1.03576041e-02 ,9.10072254e-01, 1.67389421e+00, 8.95345e+01, 2.65769862e+00 ,1.37995266e+00 ,23612.8375e+00, 5]
 
-
-params_list_comp=get_WT_params(model_type=func,start_guess=params_list_comp,n_iter=1e5,method="Nelder-Mead",params_dict=params_dict_comp,custom_settings=[[1e-5,1e-5,1e-5],[None,None,None],["Deg","A_s","C_o"]],tol=1)
+params_list_comp=get_WT_params(model_type=func,start_guess=params_list_comp,n_iter=1e5,method="Nelder-Mead",params_dict=params_dict_comp,custom_settings=[],tol=1)
 
 #%%QQ
 #%%
 #getting wt params
 func=model_hill_shaky.model
-a=model_hill_shaky([1]*16,meta_dict["WT"].S)
+params_dict = {'sen_params': {'A_s': 649, 'B_s': 2.52999942e+04, 'C_s': 1.20000166e+03, 'N_s': 1},'reg_params': {'A_r': 1, 'B_r': 10000, 'C_r': 0.6, 'N_r': 1}, 'out_h_params': {},'out_params': {'A_o': 1, 'B_o': 700, 'C_o': 0.1, 'N_o': 3},'free_params': {'F_o': 60}}
+params_list = dict_to_list(params_dict)
+a=model_hill_shaky(params_list,meta_dict["WT"].S)
 I_conc=meta_dict["WT"].S
-params_list_hill_shaky=dict_to_list(a.example_dict)
-params_dict_hill_shaky=a.example_dict
-params_list_hill_shaky=get_WT_params(model_type=func,start_guess=params_list_hill_shaky,n_iter=1e5,method="TNC",params_dict=params_dict_hill_shaky,custom_settings=[],tol=0.001)
+params_list=get_WT_params(model_type=func,start_guess=params_list,n_iter=1e5,method="TNC",params_dict=params_dict,custom_settings=[[629, 2.51e+04, 1.20000166e+03, 0.9, 1, 9000, 0.5, 0.8, 1,0.001, 0.0001, 0.001, 0.001],[669, 2.53e+04, 1.20000166e+03, 1.5, 1, 15000, 10, None , 1, None, None, 3, None],['A_s', 'B_s', 'C_s', 'N_s', 'A_r', 'B_r','C_r', 'N_r', 'A_o', 'B_o', 'C_o', 'N_o', 'F_o'] ],tol=0.001)
 #applying bounds to fit for sm mutants
-        
+
+[100, 15000, 500, 1,100,100 ,0.0001,1.1, 0, 800, 0, 0.8], [1000, 30000, 3000, 10,None,None, None, 3, 100, None, 1, 10], ['A_s', 'B_s', 'C_s', 'N_s','A_r', 'B_r','C_r', 'N_r', 'A_o', 'B_o', 'C_o', 'N_o']
+
+[[600, 25000,1319, 0.8],[700, 25500, 1319, 1.19],['A_S', 'B_s', 'C_s', 'N_s']]       
 
 all_files=os.listdir(os.path.join(path_main,"mutants_separated"))
 dat_files=[x for x in all_files if '.dat' in x]

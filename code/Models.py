@@ -230,13 +230,12 @@ class model_thermodynamic:
 
         return Sensor, Regulator, Output_half, Output
 #%%
-
-
 class model_hill_shaky:
     def __init__(self,params_list:list,I_conc):
         self.params_list=params_list
         self.I_conc=I_conc
-        self.example_dict={"sen_params":{"A_s":1,"B_s":1,"C_s":1,"N_s":1},"reg_params":{"A_r":1,"B_r":1,"C_r":1,"N_r":1},"out_h_params":{"A_h":1,"B_h":1,"C_h":1},"out_params":{"A_o":1,"B_o":1,"C_o":1,"N_o":1},"free_params":{"F_o":1}}
+        self.example_dict={"sen_params":{"A_s":500,"B_s":25000,"C_s":1200,"N_s":1},"reg_params":{"A_r":3000,"B_r":10000,"C_r":0.00001,"N_r":0.01},"out_h_params":{},"out_params":{"A_o":1,"B_o":1,"C_o":1,"N_o":1},"free_params":{"F_o":1}}
+        #params_list = dict_to_list(example_dict)
         self.correct_length=16
     @staticmethod
     def model(params_list:list,I_conc):
@@ -244,55 +243,38 @@ class model_hill_shaky:
         #R is subscript for parameters corresponding to Regulator
         #H is subscript for parameters corresponding to the half network I->S -| O
         #O is subscript for parameters corresponding to Output
-        
         #creates variables described in params_dict 
-
-        #sensor
         A_s=params_list[0]
         B_s=params_list[1]
         C_s=params_list[2]
         N_s=params_list[3]
         #regulator
-        A_r=params_list[4]
         B_r=params_list[5]
         C_r=params_list[6]
         N_r=params_list[7]
-        #out_half
-        A_h=params_list[8]
-        B_h=params_list[9]
-        C_h=params_list[10]
         #output
-        A_o=params_list[11]
-        B_o=params_list[12]
-        C_o=params_list[13]
-        N_o=params_list[14]
+        B_o=params_list[9]
+        C_o=params_list[10]
+        N_o=params_list[11]
         #free
-        F_o=params_list[15]
+        F_o=params_list[12]
         
         Sensor = np.array([])
         Regulator = np.array([])
         Output_half = np.array([])
         Output = np.array([])
         #initial conditions assumed as steady state with no inducer present
-        S0 = A_r
-        R0 = B_r/(1+np.power(C_r*S0,N_r))+ A_r
-        H0 = B_h/(1+np.power(C_h*S0,N_o))+A_h
-        O0 = A_o*A_h + B_o*B_h/(1+np.power(C_h*(S0+C_o*R0),N_o))*F_o
-        SRHO0 = np.array([S0,R0,H0,O0])
+        S0 = A_s 
+        R0 = B_r/(1+np.power(C_r*S0,N_r))
+        H0 = B_o/(1+np.power(C_o*S0,N_o))
+        O0 = (B_o/(1+np.power(C_o*(S0+R0),N_o)))*F_o
         #arbitrary time point to integrate ODE up to
-        t = np.array([1])
+        t = np.linspace(0,1,2)
         #define system of ODEs to be solved by odeint, for a each inducer concentration
-        for conc in I_conc:
-            def ODEs(SRHO):
-            #for set in params_dict.values():
-            #    locals().update(set) 
-                S = SRHO[0]
-                R = SRHO[1]
-                H = SRHO[2]
-                O = SRHO[3]
+        def ODE_S(S, t, conc):
             #S for sensor concentration at time t, prod for production
-                S_prod = A_s+B_s*np.power(C_s*conc,N_s)
-                S_prod /= 1+np.power(C_s*conc,N_s)
+            S_prod = A_s+B_s*np.power(C_s*conc,N_s)
+            S_prod /= 1+np.power(C_s*conc,N_s)
             #change in S concentration w.r.t. time, deg for degredation rate
             dSdt = S_prod - S
             return dSdt
@@ -309,7 +291,7 @@ class model_hill_shaky:
         
         def ODE_O(O,t, S_R):
             O_prod = A_o + B_o/(1+np.power(C_o*(S_R),N_o))
-            dOdt = O_prod - (O)**F_o
+            dOdt = O_prod - (O)*F_o
             return dOdt
 
         for conc in I_conc:
@@ -322,55 +304,7 @@ class model_hill_shaky:
             O = odeint(ODE_O, O0, t, args = (S+R,))[-1]
             Output = np.append(Output, O)
         return Sensor,Regulator , Output_half, Output
-    
-    @staticmethod
-    def model_2(params_list:list,I_conc):
-        #this model 
-        correct_length=16
-        #S is subscript for parameters corresponding to Sensor
-        #R is subscript for parameters corresponding to Regulator
-        #H is subscript for parameters corresponding to the half network I->S -| O
-        #O is subscript for parameters corresponding to Output
-        
-        #creates variables described in params_dict 
-        if len(params_list)!=correct_length:
-            print("params_list of incorrect length should be of length ",correct_length)
-            return None
-        
-        #sensor
-        A_s=params_list[0]
-        B_s=params_list[1]
-        C_s=params_list[2]
-        N_s=params_list[3]
-        #regulator
-        A_r=params_list[4]
-        B_r=params_list[5]
-        C_r=params_list[6]
-        N_r=params_list[7]
-        #out_half
-        A_h=params_list[8]
-        B_h=params_list[9]
-        C_h=params_list[10]
-        #output
-        A_o=params_list[11]
-        B_o=params_list[12]
-        C_o=params_list[13]
-        N_o=params_list[14]
-        #free
-        F_o=params_list[15]
-        
-        Sensor = np.array([])
-        Regulator = np.array([])
-        Output_half = np.array([])
-        Output = np.array([])
-        #initial conditions assumed as steady state with no inducer present
-        S0 = A_r
-        R0 = B_r/(1+np.power(C_r*S0,N_r))+ A_r
-        H0 = B_h/(1+np.power(C_h*S0,N_o))+A_h
-        O0 = A_o*A_h + B_o*B_h/(1+np.power(C_h*(S0+C_o*R0),N_o))*F_o
-        SRHO0 = np.array([S0,R0,H0,O0])
-       
-#%%
+    #%%
 
 #function to minimize while fitting, expects a dictionary of parameters corresponding to the model of interest, 
 def min_fun(params_list:list,data,model_type):
@@ -468,22 +402,17 @@ class CompDeg:
         C_s=params_list[2]
         N_s=params_list[3]
         #regulator
-        A_r=params_list[4]
-        B_r=params_list[5]
-        C_r=params_list[6]
-        N_r=params_list[7]
-        #out_half
-        
+        B_r=params_list[4]
+        C_r=params_list[5]
+        N_r=params_list[6]  
         #output
-        A_o=params_list[8]
-        B_o=params_list[9]
-        C_o=params_list[10]
-        N_o=params_list[11]
-        
+        B_o=params_list[7]
+        C_o=params_list[8]
+        N_o=params_list[9] 
         #free
-        F_o=params_list[12]
-        K= params_list[13] #affinity of S, R & O for protease
-        Deg = params_list[14] #average linear degredation term for S, R & O
+        F_o=params_list[10]
+        K= params_list[11] #affinity of S, R & O for protease
+        #Deg = params_list[12] #average linear degredation term for S, R & O
         
         #since new system of equasions must be defined for each I_conc, a for loop is used to redefine the functions.
         Sensor = np.array([])
@@ -498,14 +427,14 @@ class CompDeg:
             #Amount of R PRODUCED depends only on the amount of Sensor at a given time
             def R_prod(S):
                 R_prod = B_r/(1+np.power(C_r*S,N_r))
-                R_prod += A_r
+                #R_prod += A_r
                 return R_prod
             
             #Since R depends on S only,
             #The amount of O PRODUCED in the full or half network depends on the amount of S at a given time. 
             def H_prod(S):
                 H_prod = B_o/(1+np.power(C_o*S,N_o))
-                H_prod += A_o
+                #H_prod += A_o
                 return H_prod
 
             #Amount of R in the full network (as a function of S)
@@ -519,7 +448,7 @@ class CompDeg:
 
             #therefore F_SR(S) is a function of S with S* in F_SR(S*)= 0 equal to S at steady state (of network with Output missing)
             def F_SR(S):
-                return S_prod - (S*K)/(1+K*(S+R_SR(S)))-S
+                return S_prod - S/(1+K*(S+R_SR(S)))-Deg*S
             
             #Amount of O in I --> S --| R is similar to R_SR, but with a different production term
             def O_SO(S):
@@ -533,7 +462,10 @@ class CompDeg:
             #function calculating production of O in full network, for a given S
             def O_prod(S):
                 R__SRO = R_SRO(S)
-                O_prod = A_o + B_o/(1+np.power(C_o*(S+R__SRO),N_o))
+                O_prod = P_r+C_pl*K_l*P_r*(S+R__SRO)**2
+                O_prod /= 1+P_r+C_pl*K_l*P_r*(S+R__SRO)**2+K_l*(S+R__SRO)**2
+                O_prod *= A_o
+                O_prod *= F_o
                 return O_prod
             
             #Amount of O at one time can be written as a quadratic function of S and R with 2 real roots, one positive and one negative
@@ -632,7 +564,7 @@ class CompDeg:
 
             #therefore F_SR(S) is a function of S with S* in F_SR(S*)= 0 equal to S at steady state (of network with Output missing)
             def F_SR(S):
-                return S_prod - S*K/(1+K*(S+R_SR(S)))-Deg*S
+                return S_prod - S/(1+K*(S+R_SR(S)))-Deg*S
             
             #Amount of O in I --> S --| R is similar to R_SR, but with a different production term
             def O_SO(S):
@@ -641,15 +573,12 @@ class CompDeg:
             #therefore F_SO(S) is a function of S with S* in F_SO(S*)= 0 equal to S at steady state (of network with Regulator missing)
             def F_SO(S):
                 O = O_SO(S)
-                return S_prod - S/(1+K*(S+O))-Deg*S
+                return S_prod - S*K/(1+K*(S+O))-S
 
             #function calculating production of O in full network, for a given S
             def O_prod(S):
                 R__SRO = R_SRO(S)
-                O_prod = P_r+C_pl*K_l*P_r*(S+R__SRO)**2
-                O_prod /= 1+P_r+C_pl*K_l*P_r*(S+R__SRO)**2+K_l*(S+R__SRO)**2
-                O_prod *= A_o
-                O_prod *= F_o
+                O_prod = A_o + B_o/(1+np.power(C_o*(S+R__SRO),N_o))
                 return O_prod
             
             #Amount of O at one time can be written as a quadratic function of S and R with 2 real roots, one positive and one negative
@@ -657,8 +586,8 @@ class CompDeg:
                 R = R_SRO(S)
                 #write quadratic function for O in form aO^2+bO-c
                 #a & c > 0 
-                a = K*Deg
-                b = 1+Deg+K*Deg*(S+R)-O_prod(S)*K
+                a = K
+                b = 2+K*(S+R)-O_prod(S)*K
                 c = -(1+K*(S+R))
                 return max((-b+np.power((np.power(b,2)-4*a*c),0.5))/(2*a), (-b-np.power((np.power(b,2)-4*a*c),0.5))/(2*a))
 
@@ -666,9 +595,9 @@ class CompDeg:
             def F_SRO(S):
                 R = R_SRO(S)
                 O = O_SRO(S)
-                return S_prod - S/(1+K*(S+R+O)) - Deg*S
+                return S_prod - S/(1+K*(S+R+O)) - S
             
-            Sensor = np.append(Sensor, S_prod/(1+Deg+K*Deg - K*Deg))
+            Sensor = np.append(Sensor, S_prod/(2+K - K))
 
             S_SR = root_scalar(F_SR , method='secant', xtol=1e-3, x0 = 0, x1 = 2000).root
             Regulator = np.append(Regulator, R_SR(S_SR))
@@ -736,5 +665,3 @@ def test():
 #     ax.set_yscale('log')
 #     ax.set_xscale('log')
 # #%%
-
-

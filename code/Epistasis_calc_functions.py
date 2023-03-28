@@ -65,22 +65,17 @@ def G_log(mutants:list):
     G_log_std_rel = np.multiply(G_log, y)
     return G_log, G_log_std, G_log_std_rel
 
-#get parameter names from dictionary of a certain model class
-def get_param_names(model, mut_type:str):
-    
-    return
-
 #expected GFP for double or triple mutants for a given model
-def G_hat(model, mutants:list, df_fits:pd.DataFrame):
+def G_hat(model, mutants:list, df_fits:pd.DataFrame, example_dict = {}):
     #copy df_fits and replace relevant parameters with mutated ones in df_fits row for first mutant in "mutants" list
     df_fits1 = df_fits.copy(deep = False)
     for mut in mutants[1:]:
         #get parameter names relevant to "mut"
         mut_type = f"{mut[0:3].lower()}"
         param_list = []
-        for key in model.example_dict:
+        for key in example_dict:
             if key.startswith(mut_type):
-                param_list += list(model.example_dict[key])
+                param_list += list(example_dict[key])
         new_params = df_fits1[df_fits1['mutant'] == mut].filter(param_list)
         df_fits1.loc[df_fits1['mutant'] == mutants[0],new_params.columns] = new_params.values
     #get parameter values for mutant combination
@@ -135,7 +130,7 @@ def G_lab(mutants:list):
     G_lab = np.log10(np.divide(MT_mean, g_WT))
     return G_lab, MT_sd
 
-def Epistasis(mutants:list,df_fits:pd.DataFrame, model = 'observed'):
+def Epistasis(mutants:list,df_fits:pd.DataFrame, model = 'observed', example_dict = {}):
     G_log_mean = G_log(mutants)[0]
     #Ghat_logadd_std = G_log(mutants)[1]   
     if model == 'observed':
@@ -146,7 +141,7 @@ def Epistasis(mutants:list,df_fits:pd.DataFrame, model = 'observed'):
         p_val = stats.ttest_ind_from_stats(mean1 = 1091,std1 = 252, nobs1 = 3,mean2 = 1730, std2 = 303, nobs2 = 3)[1]
         p_vals = np.array([p_val, p_val, p_val])
     else:
-        G_mean = G_hat(model, mutants, df_fits)
+        G_mean = G_hat(model, mutants, df_fits, example_dict = example_dict)
         Epsilon = G_mean - G_log_mean
         p_vals = np.array([0,0,0])
     if len(mutants) == 2:
@@ -157,7 +152,6 @@ def Epistasis(mutants:list,df_fits:pd.DataFrame, model = 'observed'):
     inducer_level = ['low', 'medium', 'high']
     return Epsilon, p_vals, G_mean, G_log_mean, genotype_category, genotype, inducer_level
 
-#%%
 #calculate epistasis for all double mutants - returns dataframe with Epistasis mean and PValue, and GFP output under a model or observed in lab, and G_logadd for each pairwise and triple mutant  
 def get_Eps(model='observed', strat = 'all'):
     df_Eps = pd.DataFrame({'Ep': [],'Ep_pVal':[],'G': [], 'G_log': [] ,'genotype category': [],'genotype': [], 'inducer level': []})
@@ -171,7 +165,7 @@ def get_Eps(model='observed', strat = 'all'):
         if i % 100 == 0:
             print(mut_id)
         mut_names = get_mut_names(mut_id)
-        mut_Eps = Epistasis(mut_names,df_fits, model)
+        mut_Eps = Epistasis(mut_names,df_fits, model, example_dict = example_dict)
         row_low = []
         row_med = []
         row_high = []
@@ -198,6 +192,7 @@ def Eps_toExcel(model= 'observed', strategy:str = 'all'):
     #export to a spreadsheet
     if model != 'observed':
         model_name = model.__qualname__
+        strategy = f"_{strategy}"
     else:
         model_name = 'observed'
     df_Eps.to_excel('../results/Eps_'+model_name+'_'+strategy+'.xlsx')
