@@ -1,116 +1,125 @@
 import pandas as pd
 import numpy as np
+import seaborn as sns
 import matplotlib.pyplot as plt
-from Chi_Figure3_func import Sort_mutants, convertDF
+import matplotlib.patches as patches
 
-observed = Figures() #defined below
+observed = Figures(model = 'model_thermodynamic_sensor',split_pt = False) #defined below
 indEps_observed = indComp('model_thermodynamic')
 
+#set what colour you want to display the model in
+observed_col = 'red'
+model_hill_all_col = 'green'
+model_therm_sens_col = 'navy'
 
 #%% use this to define the function "Figures"
 #Figures function gives figures of standard deviation and mean epistasis for mutants grouped by inducer conc and node mutated
-def Figures(model= 'observed'):
-    columns = ['genotype', 'Ep', 'genotype category', 'inducer level']
-    df = pd.read_excel('../results/Eps_'+model+'.xlsx')[columns]
-    columns.append('node')
-    df_Eps = pd.DataFrame(columns).set_index(0).T
-    node_order = ['Sensor', 'Regulator', 'Output']
-    for nodes in node_order:
-        for cat in ['pairwise', 'triple']:
-            for ind in ['low', 'medium', 'high']:
-                for i in range(1,11):
-                    node = nodes[0] +str(i)
-                    rows = df['Ep'].loc[((df['genotype'].str.startswith(node + '_')) | (df['genotype'].str.endswith('_' + node))| (df['genotype'].str.contains('_' + node + '_'))) & df['genotype category'].str.contains(cat) & df['inducer level'].str.contains(ind)]
-                    mean = rows.mean()
-                    std = rows.std()
-                    df_node = pd.DataFrame({'genotype':[node], 'mean': [mean], 'std': [std], 'genotype category': [cat], 'inducer level': [ind], 'node':[nodes]}).set_index('genotype')
-                    df_Eps = pd.concat([df_Eps, df_node])
-    df_Eps = df_Eps.drop(columns = ['genotype', 'Ep']).rename(columns = {'inducer level': 'LMH'})
+def Figures(model= 'model_hill_all', split_pt = False, model_col:str = model_hill_all_col):
+    #function to get Eps for a given model
+    def get_modelEps(model:str = 'observed'):
+        columns = [ 'genotype category', 'inducer level', 'genotype','Ep']
+        df = pd.read_excel(f"../results/Eps_{model}.xlsx")[columns]
+        df_Eps = pd.DataFrame(columns[:-2]+['std', 'node']).set_index(0).T
+        #get all instances of each mutant in its own dataframe and group to find the mean and std
+        for node in ['Sensor', 'Regulator', 'Output']:
+            for i in range(1,11):
+                mut = f"{node[0]}{i}"
+                search = df.loc[((df['genotype'].str.startswith(mut + '_')) | (df['genotype'].str.endswith('_' + mut))| (df['genotype'].str.contains('_' + mut + '_')))].groupby(['genotype category', 'inducer level']) 
+                df_mut_mean = search.mean().rename(columns={"Ep": "mean"})
+                df_mut_std = search.std().rename(columns={"Ep": "std"})
+                df_mut = pd.concat([df_mut_mean,df_mut_std], axis = 1).reset_index()
+                #need to reorder inducer level column for plotting later
+                df_mut['order'] = [3,1,2]*(int(len(df_mut)/3))
+                df_mut = df_mut.sort_values(by = "order").drop('order', axis = 1)
+                #add a label for the node
+                df_mut['node'] = [node]*len(df_mut)
+                #add mutant df to df with all mutants in
+                df_Eps = pd.concat([df_Eps, df_mut])
+        #add a column indicating the model
+        df_Eps['model'] = [f"{model}"]*len(df_Eps)
+        #prefer 'LMH' to 'inducer level' since only one word, same for genotype category
+        return df_Eps.rename(columns = {'inducer level': 'LMH', 'genotype category': 'cat'}).reset_index(drop = True)
 
-    df_means_p = df_Eps.loc[df_Eps['genotype category']== 'pairwise'].drop(columns='std').rename(columns = {'mean': 'Epistasis'})
-    df_means_t = df_Eps.loc[df_Eps['genotype category']== 'triple'].drop(columns='std').rename(columns = {'mean': 'Epistasis'})
-    df_vars_p = df_Eps.loc[df_Eps['genotype category']== 'pairwise'].drop(columns='mean').rename(columns = {'std': 'Epistasis'})
-    df_vars_t = df_Eps.loc[df_Eps['genotype category']== 'triple'].drop(columns='mean').rename(columns = {'std': 'Epistasis'})
+    df_Eps_obs = get_modelEps() #get obseved eps
+    df_Eps_mod = get_modelEps(model)#get model data
+    df_Eps = pd.concat([df_Eps_obs, df_Eps_mod])
+    #stick node, and LMH columns together so that seaborn can group them properly
+    df_Eps["desc"] = df_Eps["node"].map(str) + ", " + df_Eps["LMH"]
 
-    group = ['node','LMH']
-    col_choice = ['r', 'g', 'b']
-    #group data by node and inducer cons ready to be plotted on a figure
-    def Plot_setup(df:pd.DataFrame):
-        grouped = df.groupby(group, sort=False)
-        names, vals, xs, bar_pos, cols = [], [],[], [], []
-        for i, (name, subdf) in enumerate(grouped):
-            names.append(name[1])
-            vals.append(subdf['Epistasis'].tolist())
-            bar_pos += [i+1]
-            xs.append(np.random.normal(i+1, 0.04, subdf.shape[0]))
-            if i < 3:
-                cols += [[col_choice[0]]*subdf.shape[0]]
-            elif i < 6:
-                cols += [[col_choice[1]]*subdf.shape[0]]
-            else:
-                cols += [[col_choice[2]]*subdf.shape[0]]
-        #posttions for boxplots and x values for scatter plots
-        for i in range(3):
-            adj = 0.3
-            xs[3*i] += adj
-            bar_pos[3*i] += adj
-            xs[3*i+2] -= adj
-            bar_pos[3*i+2] -= adj
-        return names, vals, xs, bar_pos, cols
-
-    #defina a plotting function
-    def Plotter(ax, names, vals, xs, bar_pos, cols,isMean = False, triple = False):
-        #names = mean_P[0]
-        #bar_pos = mean_P[3]
-        if triple == True:
-            title = 'triple'
-            title_col = 'orange'
+    #manually get the x tick positions and names
+    x_ticks = []
+    x_names = []
+    for i in range(df_Eps["desc"].nunique()):
+        adj = 0.25
+        if i % 3 == 1:
+            x_ticks.append(i)
+        elif i % 3 == 2:
+            x_ticks.append(i-adj)
         else:
-            title = 'pairwise'
-            title_col = 'purple'
-        ax.set_title(title, c = title_col) 
-        for x, val, col in zip(xs, vals, cols):
-            ax.scatter(x, val, alpha=0.4, c = col)
-            ax.errorbar(np.mean(x) , np.mean(val), np.std(val), linestyle='None', fmt='_', c = 'k', elinewidth = 1.5, capsize = 1.5)
-        if isMean == True:
-            ax.axhline(zorder = 0.5, c = 'lightgrey', linestyle = '--')
-            #ax.set_ylim(min(df_Eps['mean'])*1.1, max(df_Eps['mean'])*1.1) 
-            ax.set_ylim(-0.7, 1.3) #hard code limits to easily compare between models
-        else:
-            #ax.set_ylim(0, max(df_Eps['std'])*1.1)
-            ax.set_ylim(0, 0.8) 
-        ax.xaxis.set_ticks(bar_pos)
-        ax.set_xticklabels(names,rotation=45, fontsize=8)
-        secax = ax.secondary_xaxis('bottom')
-        secax.set_xticks(bar_pos[1::3], node_order)
-        secax.tick_params(pad=40)
+            x_ticks.append(i+adj)
+    x_names = list(df_Eps["LMH"].unique())*3
+    sec_x_names = list(df_Eps["node"].unique())
+
+    def Plotter(ax, data, y):
+        palette ={"observed": observed_col, model: model_hill_all_col}
+        sns.violinplot(ax = ax, data=data, x='desc', y=y, hue="model", split=True, dodge=False, palette=palette)
+        #ax.xaxis.set_ticks(x_ticks)
+        ax.set_xticklabels(x_names, fontsize=axis_size)
+        ax.set_xlabel('')
+        ax.add_patch(patches.Rectangle((-0.5,-100), 9/3, 1000, alpha = 0.1, color = 'r', zorder = 0.1)) 
+        ax.add_patch(patches.Rectangle((-0.5+9/3,-100), 9/3, 1000, alpha = 0.1, color = 'g', zorder = 0.1)) 
+        ax.add_patch(patches.Rectangle((-0.5+(9*2)/3,-100), 9/3, 1000, alpha = 0.1, color = 'b', zorder = 0.1)) 
+
+    def set_axs(ax1, ax2):
+        ax1.axhline(zorder = 0.5, c = 'darkgrey', linestyle = '--')
+        #axis Ticks
+        ax1.set_xticks([])
+        secax = ax2.secondary_xaxis('bottom')
+        secax.set_xticks(x_ticks[1::3], sec_x_names, fontsize = axis_size)
+        secax.tick_params(pad=pad)
         #ax.set_xticklabels( names )
-        for ticklabel, tickcolor in zip(secax.get_xticklabels(), col_choice):
+        for ticklabel, tickcolor in zip(secax.get_xticklabels(), ['r', 'g', 'b']):
             ticklabel.set_color(tickcolor)
-        return ax
+        #axis labels
+        ax1.set_ylabel(f"mean of $\epsilon$", fontsize = axis_size)
+        ax2.set_ylabel(f"standard deviation of $\epsilon$", fontsize = axis_size)
+        #legend
+        ax1.get_legend().remove()
+        ax2.get_legend().remove()
 
-    #Define the figures, mean first,
-    Fig_obs_Mean, (means_p, means_t) = plt.subplots(1,2)
-    mean_P = Plot_setup(df_means_p)
-    Plotter(means_p, *mean_P, True)
-    mean_T = Plot_setup(df_means_t)
-    Plotter(means_t,*mean_T, True, triple = True)
-    means_p.set_ylabel('mean $\epsilon$')
-    Fig_obs_Mean.suptitle(str(model))
-    plt.show()
-    Fig_obs_Mean.savefig("../results/"+model+"_EpMean.jpg")
+    if split_pt == False:
+        title_size = 15
+        axis_size = 14
+        pad = 20
+        Fig, (ax1, ax2) = plt.subplots(2, 1, figsize = (8.27,7))
+        Plotter(ax1, data = df_Eps, y= "mean")
+        Plotter(ax2, data = df_Eps, y= "std")
+        set_axs(ax1, ax2)
+        file_path = "../results/"+model+"Ep_compare_pt.jpg"
 
-    #then varience
-    Fig_obs_Var, (vars_p, vars_t) = plt.subplots(1,2)
-    var_P = Plot_setup(df_vars_p)
-    Plotter(vars_p, *var_P)
-    var_T = Plot_setup(df_vars_t)
-    Plotter(vars_t,*var_T, triple = True)
-    vars_p.set_ylabel('standard deviation of $\epsilon$')
-    Fig_obs_Var.suptitle(str(model))
-    plt.show()
-    Fig_obs_Var.savefig("../results/"+model+"EpStd.jpg")
-    return Fig_obs_Mean, Fig_obs_Var
+    else:
+        title_size = 30
+        axis_size = 25
+        pad = 40
+        Fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize = (16,14))
+        Plotter(ax1, data = df_Eps.loc[df_Eps.cat == "pairwise"], y= "mean")
+        Plotter(ax3, data = df_Eps.loc[df_Eps.cat == "pairwise"], y= "std")
+        Plotter(ax2, data = df_Eps.loc[df_Eps.cat == "triplet"], y= "mean")
+        Plotter(ax4, data = df_Eps.loc[df_Eps.cat == "triplet"], y= "std")
+        set_axs(ax1, ax3)
+        set_axs(ax1 = ax2, ax2 = ax4)
+        ax2.set_ylabel('')
+        ax4.set_ylabel('')
+        ax3.set_xticklabels(['L', 'M', 'H']*3)
+        ax4.set_xticklabels(['L', 'M', 'H']*3)
+        file_path = "../results/"+model+"Ep_compare_pt.jpg"
+      
+    handles, labels = ax2.get_legend_handles_labels()
+    Fig.legend(handles, labels, loc="upper left", bbox_to_anchor=(0.9, 0.9), fontsize = axis_size)
+    Fig.suptitle(f"Mean and Varience of Calculated versus Obseved Epistasis for \n{model.split('_')[1]} model with sampling strategy '{model.split('_')[2]}'".title(), fontsize = title_size)
+    
+    Fig.savefig(file_path)
+    return Fig 
 
 
 #plot comparing epistasis at different inducer concs

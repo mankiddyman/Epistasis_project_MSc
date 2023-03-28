@@ -424,11 +424,17 @@ class CompDeg:
     def __init__(self,params_list:list,I_conc):
         self.params_list=params_list
         self.I_conc=I_conc
-        self.example_dict_model_2={"sen_params":{"A_s":1,"B_s":1,"C_s":1,"N_s":1},"reg_params":{"A_r":1,"B_r":1,"C_r":1,"N_r":1},"out_h_params":{},"out_params":{"A_o":1,"B_o":1,"C_o":1,"N_o":1,"F_o":1},"free_params":{ "K":1, "Deg":1}}
-        self.n_parameters_2=15
-
+        self.example_dict_hill={"sen_params":{"A_s":1,"B_s":1,"C_s":1,"N_s":1},"reg_params":{"A_r":1,"B_r":1,"C_r":1,"N_r":1},"out_h_params":{},"out_params":{"A_o":1,"B_o":1,"C_o":1,"N_o":1,"F_o":1},"fixed_params":{ "K":1, "Deg":1}}
+        self.n_parameters_hill=15
+        self.n_parameters_thermo = 16
+        self.example_dict_therm={"sen_params":{"P_b":1,"P_u":1,"K_12":1,"C_pa":1,"A_s":1},"reg_params":{"P_r":1,"C_pt":1,"K_t":1,"A_r":1},"out_h_params":{},"out_params":{"P_o":1,"C_pl":1, "K_l":1,"A_o":1},"free_params":{"K":1, "Deg":1},"fixed_params":{"F_o":1}}
+    
+    def getdict_hill(self):
+        return self.example_dict_hill
+    def get_dict_therm(self):
+        return self.example_dict_therm
     @staticmethod    
-    def model_2(params_list,I_conc):             #reformulated so that output half and output are same parameters with F_o to scale
+    def model_hill(params_list,I_conc):             #reformulated so that output half and output are same parameters with F_o to scale
         correct_length=15
         #S is subscript for parameters corresponding to Sensor
         #R is subscript for parameters corresponding to Regulator
@@ -513,7 +519,120 @@ class CompDeg:
 
             #therefore F_SR(S) is a function of S with S* in F_SR(S*)= 0 equal to S at steady state (of network with Output missing)
             def F_SR(S):
-                return S_prod - S/(1+K*(S+R_SR(S)))-Deg*S
+                return S_prod - (S*K)/(1+K*(S+R_SR(S)))-S
+            
+            #Amount of O in I --> S --| R is similar to R_SR, but with a different production term
+            def O_SO(S):
+                return (H_prod(S)*S)/S_prod
+            
+            #therefore F_SO(S) is a function of S with S* in F_SO(S*)= 0 equal to S at steady state (of network with Regulator missing)
+            def F_SO(S):
+                O = O_SO(S)
+                return S_prod - (S*K)/(1+K*(S+O))-S
+
+            #function calculating production of O in full network, for a given S
+            def O_prod(S):
+                R__SRO = R_SRO(S)
+                O_prod = A_o + B_o/(1+np.power(C_o*(S+R__SRO),N_o))
+                return O_prod
+            
+            #Amount of O at one time can be written as a quadratic function of S and R with 2 real roots, one positive and one negative
+            def O_SRO(S):
+                R = R_SRO(S)
+                #write quadratic function for O in form aO^2+bO-c
+                #a & c > 0 
+                a = K
+                b = 1+Deg+K*Deg*(S+R)-O_prod(S)*K
+                c = -(1+K*(S+R))
+                return max((-b+np.power((np.power(b,2)-4*a*c),0.5))/(2*a), (-b-np.power((np.power(b,2)-4*a*c),0.5))/(2*a))
+
+            #Amount of S at steady state in full network can now be written as a function F_SRO(S) with a root equal to the predicted amount of S at this steady state
+            def F_SRO(S):
+                R = R_SRO(S)
+                O = O_SRO(S)
+                return S_prod - S*K/(1+K*(S+R+O)) - Deg*S
+            
+            Sensor = np.append(Sensor, S_prod/(1+Deg+K*Deg - K*Deg))
+
+            S_SR = root_scalar(F_SR , method='secant', xtol=1e-3, x0 = 0, x1 = 2000).root
+            Regulator = np.append(Regulator, R_SR(S_SR))
+
+            S_SO = root_scalar(F_SO , x0 = 0, x1 = 2000, method='secant', xtol=1e-3).root
+            Output_half = np.append(Output_half, (O_SO(S_SO)))
+
+            S_SRO = root_scalar(F_SRO , x0 = 0, x1 = 2000, method='secant', xtol=1e-3).root
+            Output =np.append(Output,F_o*(O_SRO(S_SRO)))
+
+        #I wonder why we describe different repression strengths for repression by LacI_regulator and LacI_sensor?
+        return pd.Series(Sensor) ,pd.Series(Regulator),pd.Series(Output_half), pd.Series(Output)
+    @staticmethod
+    def model_thermo(params_list,I_conc):             #reformulated so that output half and output are same parameters with F_o to scale
+        correct_length=16
+        if len(params_list)!=correct_length:
+            print("params_list of incorrect length should be of length ",correct_length)
+            return 0
+        P_b=params_list[0]
+        P_u=params_list[1]
+        K_12=params_list[2]
+        C_pa=params_list[3]
+        A_s=params_list[4]
+        # regulator
+        P_r=params_list[5]
+        C_pt=params_list[6]
+        K_t=params_list[7]
+        A_r=params_list[8]
+        # output
+        P_o=params_list[9]
+        C_pl=params_list[10]
+        K_l=params_list[11]
+        A_o=params_list[12]
+        # shared
+        
+        # fixed
+        F_o=params_list[13]
+        K= params_list[14] #affinity of S, R & O for protease
+        Deg = params_list[15] #average linear degredation term for S, R & O
+        I=I_conc
+        
+        #since new system of equasions must be defined for each I_conc, a for loop is used to redefine the functions.
+        Sensor = np.array([])
+        Regulator = np.array([])
+        Output_half = np.array([])
+        Output = np.array([])
+        for I in I_conc:
+            #S PRODUCED is constant for a given I conc
+            S_prod = P_b+C_pa*P_u*K_12*I**2
+            S_prod /= 1+P_b+C_pa*P_u*K_12*I**2+K_12*I**2
+            S_prod *= A_s
+
+
+            #Amount of R PRODUCED depends only on the amount of Sensor at a given time
+            def R_prod(S):
+                R_prod = P_r+C_pt*P_r*K_t*S**2
+                R_prod /= 1+P_r+C_pt*P_r*K_t*S**2+K_t*S**2
+                R_prod *= A_r
+                return R_prod
+            
+            #Since R depends on S only,
+            #The amount of O PRODUCED in the full or half network depends on the amount of S at a given time. 
+            def H_prod(S):
+                H_prod = P_r+C_pl*K_l*P_r*S**2
+                H_prod /= 1+P_r+C_pl*K_l*P_r*S**2+K_l*S**2
+                H_prod *= A_o
+                return H_prod
+
+            #Amount of R in the full network (as a function of S)
+            def R_SRO(S):
+                R__SRO = np.divide(np.multiply(R_prod(S),S),S_prod)
+                return R__SRO
+            
+            #Amount of R in I --> S --| R should be the same, but a new function is defined for clarity later on
+            def R_SR(S):
+                return R_SRO(S)
+
+            #therefore F_SR(S) is a function of S with S* in F_SR(S*)= 0 equal to S at steady state (of network with Output missing)
+            def F_SR(S):
+                return S_prod - S*K/(1+K*(S+R_SR(S)))-Deg*S
             
             #Amount of O in I --> S --| R is similar to R_SR, but with a different production term
             def O_SO(S):
@@ -527,7 +646,10 @@ class CompDeg:
             #function calculating production of O in full network, for a given S
             def O_prod(S):
                 R__SRO = R_SRO(S)
-                O_prod = A_o + B_o/(1+np.power(C_o*(S+R__SRO),N_o))
+                O_prod = P_r+C_pl*K_l*P_r*(S+R__SRO)**2
+                O_prod /= 1+P_r+C_pl*K_l*P_r*(S+R__SRO)**2+K_l*(S+R__SRO)**2
+                O_prod *= A_o
+                O_prod *= F_o
                 return O_prod
             
             #Amount of O at one time can be written as a quadratic function of S and R with 2 real roots, one positive and one negative
@@ -558,7 +680,7 @@ class CompDeg:
             Output =np.append(Output,F_o*(O_SRO(S_SRO)))
 
         #I wonder why we describe different repression strengths for repression by LacI_regulator and LacI_sensor?
-        return Sensor,Regulator,Output_half, Output
+        return pd.Series(Sensor) ,pd.Series(Regulator),pd.Series(Output_half), pd.Series(Output)
 
 #TESTING model for right shape
 from data_wrangling import meta_dict

@@ -19,13 +19,14 @@ I_conc_np = np.array(list(I_conc.values()))
 I_conc_np[1] = 0.000195 #medium Inducer concentration is rounded in df_S, want more accurate value (0.000195) when fitting using a model
 
 #%%
-#get parameter values for model from here
-def get_params(model):
-    model_name = model.__qualname__
-    df_fits = pd.read_excel('../data/'+model_name+'.modelSM_params.xlsx').rename(columns={'Unnamed: 0': 'mutant'})
-    del df_fits["time_elapsed_s"]
+#get parameter values for model from here - must give it the file path after the data directory as a string
+def get_params(model:str, strat:str = 'all'):
+    if model != 'observed':
+        model_name = model.__qualname__
+    else:
+        model_name = 'observed'
+    df_fits = pd.read_excel('../data/'+model_name+ '.modelSM_params_'+strat+'.xlsx').rename(columns={'Unnamed: 0': 'mutant'})
     return df_fits
-
 #stripe output at low, medium and high incucer concentration for WT
 g_WT = np.array(df_DM['obs_fluo_mean'][df_DM['genotype']=='WT'])
 g_WT_sd = np.array(df_DM['obs_SD'][df_DM['genotype']=='WT'])
@@ -43,7 +44,7 @@ def g(mutant:str):
 
 #expected flourecence for a set set of parameters and a chosen model at concentrations in I_conc dictionary relative to WT
 def g_hat(mutant:str, model, df_fits):
-    params = df_fits[df_fits['mutant']== mutant].values.flatten().tolist()[1:-1]
+    params = df_fits[df_fits['mutant']== mutant].values.flatten().tolist()[1:-2]
     g_hat = np.divide(model.model(params_list = params, I_conc = I_conc_np)[-1],g_WT)
     return g_hat
 
@@ -158,11 +159,11 @@ def Epistasis(mutants:list,df_fits:pd.DataFrame, model = 'observed'):
 
 #%%
 #calculate epistasis for all double mutants - returns dataframe with Epistasis mean and PValue, and GFP output under a model or observed in lab, and G_logadd for each pairwise and triple mutant  
-def get_Eps(model='observed'):
+def get_Eps(model='observed', strat = 'all'):
     df_Eps = pd.DataFrame({'Ep': [],'Ep_pVal':[],'G': [], 'G_log': [] ,'genotype category': [],'genotype': [], 'inducer level': []})
     cols = len(df_Eps.axes[1])
     if model != 'observed':
-        df_fits = get_params(model)
+        df_fits = get_params(model, strat)
     else:
         df_fits = []
     print("printing every 100th mutant processed to show progress...")
@@ -192,13 +193,12 @@ def get_Eps(model='observed'):
     return df_Eps
 
 #export Epistases to an excel document named after the chosen model
-def Eps_toExcel(model= 'observed'):
-    df_Eps = get_Eps(model)
+def Eps_toExcel(model= 'observed', strategy:str = 'all'):
+    df_Eps = get_Eps(model = model, strat = strategy)
     #export to a spreadsheet
     if model != 'observed':
         model_name = model.__qualname__
     else:
         model_name = 'observed'
-    df_Eps.to_excel('../results/Eps_'+model_name+'.xlsx')
+    df_Eps.to_excel('../results/Eps_'+model_name+'_'+strategy+'.xlsx')
     return df_Eps
-

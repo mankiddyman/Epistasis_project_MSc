@@ -14,7 +14,7 @@ import matplotlib.patches as mpatches
 "path and file name for Episatsis files but can also use get_Eps instead if working."
 
 #%%
-def Sort_mutants(model): #observed, model_hill, and thermodynamic
+def Sort_mutants(model:str = 'observed', strat:str = ''): #observed, model_hill, and thermodynamic
     # if model == str('observed'):
     #     Eps_df = pd.read_excel('../results/Eps_observed.xlsx') #takes from results.
     # elif model == str('model_hill'):
@@ -23,15 +23,7 @@ def Sort_mutants(model): #observed, model_hill, and thermodynamic
     #     Eps_df = pd.read_excel('../results/thermodynamic_epistasis.xlsx')
     # else:
     #     print('the inputted model is invalid, please selec from observed, model_hill or thermodynamic')
-
-    if model == str('observed'):
-        Eps_df = pd.read_excel('../results/Eps_observed.xlsx') #takes from results.
-    elif model == str('model_hill'):
-        Eps_df = pd.read_excel('../results/Eps_model_hill.xlsx')
-    elif model == str('thermodynamic'):
-        Eps_df = pd.read_excel('../results/Eps_model_thermodynamic.xlsx')
-    else:
-        print('the inputted model is invalid, please selec from observed, model_hill or thermodynamic')
+    Eps_df = pd.read_excel(f'../results/Eps_model_{model}_{strat}.xlsx') #takes from results.
     #output
         #filter out O10
     o10 = Eps_df[Eps_df['genotype'].str.contains(str('O10'))] 
@@ -100,8 +92,8 @@ def Sort_mutants(model): #observed, model_hill, and thermodynamic
     return Output_df, Regulator_df, Sensor_df
 
 #%%
-def convertDF(dataframe,node): #need to be dimensions of 360
-    #final dataframe
+def convertDF(dataframe,node, model): #need to be dimensions of 360, node is "Output","Regulator", or "Sensor"
+#final dataframe
     if node == 'Output':
         node = 'O'
     elif node == 'Regulator':
@@ -127,12 +119,13 @@ def convertDF(dataframe,node): #need to be dimensions of 360
     Final_df['Genotype'] = gen_list
 
     Category_list = []
-    Category_list = (['pairwise'] * 60 + ['triplet'] * 300)*10 #pairwise = 0, triplet = 1
+    Category_list = ((['pairwise'] * 20 + ['triplet'] * 100)*3)*10 #pairwise = 0, triplet = 1
     Final_df['Category'] = Category_list
 
     LMH_list = []
-    LMH_list = (['low']*20 + ['medium']*20 + ['high']*20 + ['low']*100 + ['medium']*100 + ['high']*100)*10
+    LMH_list = (['low']*120 + ['medium']*120 + ['high']*120)*10
     Final_df['LMH'] = LMH_list
+    Final_df['model'] = 3600* [model]
 
     return Final_df
 
@@ -215,8 +208,5 @@ Out_thermo, Reg_thermo, Sen_thermo, = Sort_mutants('thermodynamic')
 Out_thermo_df = convertDF(Out_thermo,'Output')
 Reg_thermo_df = convertDF(Reg_thermo,'Regulator')
 Sen_thermo_df = convertDF(Sen_thermo,'Sensor')
-
-
-
 # filepath = '../results/OutputDF.csv'
 # Out_Final_df.to_csv(filepath, index=False)
